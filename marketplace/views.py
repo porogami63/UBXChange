@@ -19,7 +19,7 @@ from .models import (
     Review,
     Transaction,
 )
-from .forms import CustomUserCreationForm, ListingForm, ProfileForm, MessageForm, ForumPostForm, ForumReplyForm
+from .forms import CustomUserCreationForm, ListingForm, ProfileForm, MessageForm, ForumPostForm, ForumReplyForm, PurchaseForm, TransactionConfirmForm
 from .utils import get_similar_listings_price_stats
 
 
@@ -338,15 +338,172 @@ def favorites_list(request):
     return render(request, 'marketplace/favorites.html', {'listings': listings})
 
 
+# ----- Transactions -----
+
 @login_required
-def complete_transaction(request, transaction_id):
-    """Complete a transaction and prompt buyer to rate the seller."""
+def initiate_purchase(request, pk):
+    """Buyer initiates a purchase by selecting exchange method and adding notes."""
+    listing = get_object_or_404(Listing, pk=pk)
+    
+    # Can't buy own listing
+    if listing.seller == request.user:
+        messages.error(request, "You can't buy your own listing!")
+        return redirect(listing.get_absolute_url())
+    
+    # Can't buy sold listings
+    if listing.is_sold:
+        messages.error(request, "This listing is no longer available.")
+        return redirect(listing.get_absolute_url())
+    
+    # Check if user already has a pending transaction for this listing
+    existing_txn = Transaction.objects.filter(
+        buyer=request.user,
+        listing=listing,
+        status__in=['pending', 'confirmed']
+    ).first()
+    
+    if existing_txn:
+        messages.info(request, "You already have a pending transaction for this item. View it in your inbox.")
+        return redirect('marketplace:transaction_detail', transaction_id=existing_txn.pk)
+    
+    if request.method == 'POST':
+        form = PurchaseForm(request.POST)
+        if form.is_valid():
+            transaction = Transaction.objects.create(
+                buyer=request.user,
+                seller=listing.seller,
+                listing=listing,
+                price=listing.price,
+                exchange_method=form.cleaned_data['exchange_method'],
+                notes=form.cleaned_data['notes'],
+                status='pending'
+            )
+            
+            # Create notification for seller
+            from django.urls import reverse
+            Notification.objects.create(
+                user=listing.seller,
+                message=f"{request.user.username} wants to buy {listing.title}",
+                url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+            )
+            
+            messages.success(request, 'Purchase initiated! Waiting for seller confirmation.')
+            return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
+    else:
+        form = PurchaseForm()
+    
+    return render(request, 'marketplace/purchase_form.html', {
+        'form': form,
+        'listing': listing,
+        'seller': listing.seller,
+    })
+
+
+@login_required
+def transaction_detail(request, transaction_id):
+    """View transaction details and receipt."""
     transaction = get_object_or_404(Transaction, pk=transaction_id)
     
-    # Only buyer can complete a transaction
-    if transaction.buyer != request.user:
-        messages.error(request, "You don't have permission to complete this transaction.")
+    # Only buyer or seller can view
+    if request.user not in [transaction.buyer, transaction.seller]:
+        messages.error(request, "You don't have access to this transaction.")
         return redirect('marketplace:inbox')
+    
+    is_buyer = request.user == transaction.buyer
+    is_seller = request.user == transaction.seller
+    
+    # Form for seller to confirm
+    confirm_form = None
+    if is_seller and transaction.status == 'pending':
+        if request.method == 'POST':
+            confirm_form = TransactionConfirmForm(request.POST, instance=transaction)
+            if confirm_form.is_valid():
+                from django.utils import timezone
+                transaction = confirm_form.save(commit=False)
+                transaction.status = 'confirmed'
+                transaction.confirmed_at = timezone.now()
+                transaction.save()
+                
+                # Notify buyer
+                from django.urls import reverse
+                Notification.objects.create(
+                    user=transaction.buyer,
+                    message=f"{transaction.seller.username} confirmed your purchase!",
+                    url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+                )
+                
+                messages.success(request, 'Purchase confirmed! Buyer and seller can now exchange contact details.')
+                return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
+        else:
+            confirm_form = TransactionConfirmForm(instance=transaction)
+    
+    buyer_profile = getattr(transaction.buyer, 'profile', None) or Profile.objects.filter(user=transaction.buyer).first()
+    seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
+    
+    return render(request, 'marketplace/transaction_detail.html', {
+        'transaction': transaction,
+        'buyer_profile': buyer_profile,
+        'seller_profile': seller_profile,
+        'is_buyer': is_buyer,
+        'is_seller': is_seller,
+        'confirm_form': confirm_form,
+    })
+
+
+@login_required
+def confirm_transaction(request, transaction_id):
+    """Allow seller to confirm transaction and move to exchange stage."""
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    
+    if transaction.seller != request.user:
+        messages.error(request, "Only the seller can confirm this transaction.")
+        return redirect('marketplace:inbox')
+    
+    if transaction.status != 'pending':
+        messages.error(request, "This transaction cannot be confirmed.")
+        return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
+    
+    if request.method == 'POST':
+        form = TransactionConfirmForm(request.POST, instance=transaction)
+        if form.is_valid():
+            from django.utils import timezone
+            transaction = form.save(commit=False)
+            transaction.status = 'confirmed'
+            transaction.confirmed_at = timezone.now()
+            transaction.save()
+            
+            # Notify buyer
+            from django.urls import reverse
+            Notification.objects.create(
+                user=transaction.buyer,
+                message=f"{transaction.seller.username} confirmed your purchase!",
+                url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+            )
+            
+            messages.success(request, 'Purchase confirmed!')
+            return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
+    else:
+        form = TransactionConfirmForm(instance=transaction)
+    
+    return render(request, 'marketplace/transaction_confirm.html', {
+        'form': form,
+        'transaction': transaction,
+    })
+
+
+@login_required
+def complete_transaction(request, transaction_id):
+    """Mark transaction as complete and prompt buyer to rate the seller."""
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    
+    # Only buyer can complete
+    if transaction.buyer != request.user:
+        messages.error(request, "Only the buyer can mark this as complete.")
+        return redirect('marketplace:inbox')
+    
+    if transaction.status != 'confirmed':
+        messages.error(request, "Transaction must be confirmed first.")
+        return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
     
     from django.utils import timezone
     transaction.status = 'completed'
@@ -357,9 +514,21 @@ def complete_transaction(request, transaction_id):
         transaction.listing.is_sold = True
         transaction.listing.save()
     
-    messages.success(request, 'Transaction marked as completed! Please rate your experience with the seller.')
+    # Update seller's sold count
+    seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
+    if seller_profile:
+        seller_profile.total_sold += 1
+        seller_profile.save(update_fields=['total_sold'])
     
-    # Redirect to mandatory rating page
+    # Notify seller
+    from django.urls import reverse
+    Notification.objects.create(
+        user=transaction.seller,
+        message=f"{transaction.buyer.username} completed the purchase!",
+        url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+    )
+    
+    messages.success(request, '✓ Transaction completed! Please rate your experience with the seller.')
     return redirect('marketplace:leave_review', username=transaction.seller.username)
 
 
@@ -396,7 +565,8 @@ def _get_or_create_conversation(user1, user2, listing=None):
 
 @login_required
 def inbox(request):
-    """List user's conversations."""
+    """List user's conversations and transactions."""
+    # Get conversations
     convs = Conversation.objects.filter(participants=request.user).prefetch_related(
         'participants', 'messages__sender', 'listing'
     ).order_by('-updated_at')
@@ -413,7 +583,18 @@ def inbox(request):
             'other_display_name': (prof.display_name if prof else None) or other.username,
             'last_message': last_msg,
         })
-    return render(request, 'marketplace/inbox.html', {'conversations': convs_with_preview})
+    
+    # Get pending and confirmed transactions
+    transactions = Transaction.objects.filter(
+        status__in=['pending', 'confirmed']
+    ).filter(
+        Q(buyer=request.user) | Q(seller=request.user)
+    ).select_related('listing', 'buyer', 'seller').order_by('-created_at')
+    
+    return render(request, 'marketplace/inbox.html', {
+        'conversations': convs_with_preview,
+        'transactions': transactions,
+    })
 
 
 @login_required

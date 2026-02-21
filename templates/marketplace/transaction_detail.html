@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% block title %}Transaction Details{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Status Badge -->
+            <div class="mb-3">
+                {% if transaction.status == 'pending' %}
+                <span class="badge bg-warning text-dark">⏳ Pending Seller Confirmation</span>
+                {% elif transaction.status == 'confirmed' %}
+                <span class="badge bg-success">✓ Confirmed - Ready to Exchange</span>
+                {% elif transaction.status == 'completed' %}
+                <span class="badge bg-success">✓ Completed</span>
+                {% elif transaction.status == 'cancelled' %}
+                <span class="badge bg-danger">✗ Cancelled</span>
+                {% endif %}
+                <h1 class="font-display fw-bold h3 mt-3" style="color: var(--ubelt-navy);">Receipt & Transaction Details</h1>
+            </div>
+
+            <!-- Transaction Timeline -->
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-3">📋 Item Details</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        {% if transaction.listing and transaction.listing.image %}
+                        <img src="{{ transaction.listing.image.url }}" alt="Item" class="img-fluid rounded" style="max-height: 160px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 160px;">
+                            <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9">
+                        <h6 class="fw-bold">{% if transaction.listing %}{{ transaction.listing.title }}{% else %}Item (Deleted){% endif %}</h6>
+                        <p class="text-muted small mb-2">{% if transaction.listing %}{{ transaction.listing.get_condition_display }}{% else %}Condition Unknown{% endif %}</p>
+                        <div class="d-flex justify-content-between mt-3 pt-3" style="border-top: 1px solid #eee;">
+                            <span>Price</span>
+                            <strong style="font-size: 1.3rem;">₱{{ transaction.price|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exchange Method -->
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-3">🤝 Exchange Method</h5>
+                <div class="alert alert-blue-light p-3 mb-0">
+                    <strong>
+                        {% if transaction.exchange_method == 'in_person' %}
+                        Meet in Person
+                        {% elif transaction.exchange_method == 'gcash' %}
+                        GCash / E-wallet Transfer
+                        {% elif transaction.exchange_method == 'bank_transfer' %}
+                        Bank Transfer
+                        {% elif transaction.exchange_method == 'other' %}
+                        Other Arrangement
+                        {% endif %}
+                    </strong><br>
+                    <small class="text-muted">Both buyer and seller will exchange contact details to arrange the {{ transaction.get_exchange_method_display|lower }}</small>
+                </div>
+            </div>
+
+            <!-- Buyer & Seller Info -->
+            <div class="row mb-4">
+                <!-- Buyer -->
+                <div class="col-md-6">
+                    <div class="card p-4 h-100">
+                        <h6 class="fw-bold mb-3">🛒 Buyer</h6>
+                        <div class="d-flex mb-3">
+                            {% if buyer_profile.avatar %}
+                            <img src="{{ buyer_profile.avatar.url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% elif buyer_profile.google_avatar_url %}
+                            <img src="{{ buyer_profile.google_avatar_url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                                <i class="bi bi-person fs-5 text-secondary"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <strong>{{ buyer_profile.display_name }}</strong>
+                                <br><span class="small text-muted">@{{ transaction.buyer.username }}</span>
+                            </div>
+                        </div>
+                        {% if is_seller and transaction.status == 'pending' %}
+                        <p class="small text-muted mb-2"><i class="bi bi-chat-left-dots me-1"></i> Buyer's Message:</p>
+                        <div class="alert alert-light small" style="border-left: 3px solid #007bff;">
+                            <p class="mb-0">{{ transaction.notes|default:"No message" }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Seller -->
+                <div class="col-md-6">
+                    <div class="card p-4 h-100">
+                        <h6 class="fw-bold mb-3">🏪 Seller</h6>
+                        <div class="d-flex mb-3">
+                            {% if seller_profile.avatar %}
+                            <img src="{{ seller_profile.avatar.url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% elif seller_profile.google_avatar_url %}
+                            <img src="{{ seller_profile.google_avatar_url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                                <i class="bi bi-person fs-5 text-secondary"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <strong>{{ seller_profile.display_name }}</strong>
+                                <br><span class="small text-muted">@{{ transaction.seller.username }}</span>
+                            </div>
+                        </div>
+                        {% if seller_profile.average_rating > 0 %}
+                        <div class="small mb-2">
+                            <span style="color: var(--ubelt-gold);">
+                                {% for star in "12345" %}
+                                    {% if star|add:"0" <= seller_profile.average_rating %}⭐{% else %}☆{% endif %}
+                                {% endfor %}
+                            </span>
+                            <span class="text-muted">{{ seller_profile.average_rating|floatformat:1 }} ({{ seller_profile.review_count }} reviews)</span>
+                        </div>
+                        {% endif %}
+                        {% if transaction.status == 'pending' %}
+                        <p class="small text-muted">Waiting for seller confirmation...</p>
+                        {% elif transaction.status == 'confirmed' and transaction.seller_notes %}
+                        <p class="small text-muted mb-2"><i class="bi bi-check-circle me-1" style="color: #28a745;"></i> Seller's Confirmation:</p>
+                        <div class="alert alert-light small" style="border-left: 3px solid #28a745;">
+                            <p class="mb-0">{{ transaction.seller_notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seller Confirmation Form (if pending) -->
+            {% if is_seller and transaction.status == 'pending' %}
+            <div class="card p-4 mb-4" style="background: #f0f8ff; border: 2px solid #007bff;">
+                <h5 class="fw-bold mb-3">✅ Confirm This Purchase</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ confirm_form.seller_notes }}
+                        {% if confirm_form.seller_notes.errors %}
+                        <div class="alert alert-danger small mt-2">{{ confirm_form.seller_notes.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i> Confirm Purchase
+                    </button>
+                    <small class="d-block mt-3 text-muted">
+                        By confirming, you're agreeing to proceed with the exchange via {{ transaction.get_exchange_method_display|lower }}.
+                    </small>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            {% if is_buyer and transaction.status == 'confirmed' %}
+            <div class="card p-4 mb-4" style="background: #f0fff4; border: 2px solid #28a745;">
+                <h5 class="fw-bold mb-3 text-success">📦 Ready to Exchange!</h5>
+                <p class="mb-3">Seller has confirmed the purchase. Exchange your goods and payment, then mark as complete.</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i> Mark as Complete
+                    </a>
+                    <a href="{% url 'marketplace:inbox' %}" class="btn btn-outline-secondary">Back to Inbox</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="d-flex gap-2">
+                <a href="{% url 'marketplace:inbox' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i> Back to Inbox
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Transaction Dates -->
+            <div class="card p-3 mt-4 bg-light">
+                <small class="text-muted d-block">
+                    <i class="bi bi-calendar-event me-1"></i> Created: <strong>{{ transaction.created_at|date:"M d, Y h:i A" }}</strong>
+                </small>
+                {% if transaction.confirmed_at %}
+                <small class="text-muted d-block">
+                    <i class="bi bi-calendar-check me-1"></i> Confirmed: <strong>{{ transaction.confirmed_at|date:"M d, Y h:i A" }}</strong>
+                </small>
+                {% endif %}
+                {% if transaction.completed_at %}
+                <small class="text-muted d-block">
+                    <i class="bi bi-calendar-check me-1"></i> Completed: <strong>{{ transaction.completed_at|date:"M d, Y h:i A" }}</strong>
+                </small>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-lg-4">
+            <!-- How It Works -->
+            <div class="card p-3 mb-4">
+                <h6 class="fw-bold mb-2">📌 Transaction Steps</h6>
+                <div class="timeline">
+                    <div class="timeline-item {% if transaction.status != 'pending' %}completed{% endif %}">
+                        <i class="bi bi-check-circle"></i>
+                        <p class="small"><strong>1. Purchase Request</strong><br><span class="text-muted">Buyer initiates</span></p>
+                    </div>
+                    <div class="timeline-item {% if transaction.status in 'confirmed,completed' %}completed{% endif %}">
+                        <i class="bi bi-check-circle"></i>
+                        <p class="small"><strong>2. Seller Confirms</strong><br><span class="text-muted">Seller approves & provides details</span></p>
+                    </div>
+                    <div class="timeline-item {% if transaction.status == 'completed' %}completed{% endif %}">
+                        <i class="bi bi-check-circle"></i>
+                        <p class="small"><strong>3. Exchange</strong><br><span class="text-muted">Meet & exchange</span></p>
+                    </div>
+                    <div class="timeline-item {% if transaction.status == 'completed' %}completed{% endif %}">
+                        <i class="bi bi-check-circle"></i>
+                        <p class="small"><strong>4. Leave Review</strong><br><span class="text-muted">Rate the experience</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Safety Tips -->
+            <div class="alert alert-warning small">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Safety Tips:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Meet in a safe, public location</li>
+                    <li>Inspect the item before paying</li>
+                    <li>Don't send payment online before meeting</li>
+                    <li>Bring a friend if possible</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.alert-blue-light {
+    background: #e7f3ff;
+    border-left: 4px solid #007bff;
+}
+.timeline {
+    position: relative;
+    padding-left: 0;
+}
+.timeline-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+.timeline-item.completed {
+    opacity: 1;
+}
+.timeline-item i {
+    color: #ccc;
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.timeline-item.completed i {
+    color: #28a745;
+}
+.timeline-item p {
+    margin-bottom: 0;
+    padding-top: 2px;
+}
+</style>
+{% endblock %}

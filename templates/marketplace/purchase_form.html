@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Buy {{ listing.title }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <h3 class="font-display fw-bold mb-4" style="color: var(--ubelt-navy);">Confirm Purchase</h3>
+
+            <!-- Listing Summary -->
+            <div class="card mb-4 p-4" style="background: #f9f9f9; border: 1px solid #e0e0e0;">
+                <div class="row">
+                    <div class="col-md-3">
+                        {% if listing.image %}
+                        <img src="{{ listing.image.url }}" alt="{{ listing.title }}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                            <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9 ps-md-4">
+                        <h5 class="fw-bold">{{ listing.title }}</h5>
+                        <p class="text-muted small mb-1">{{ listing.get_condition_display }} • {{ listing.category.name }}</p>
+                        <p class="mb-2"><span class="badge bg-secondary">₱{{ listing.price|floatformat:2 }}</span></p>
+                        <p class="small text-muted">Listed by <a href="{% url 'marketplace:public_profile' listing.seller.username %}" class="text-decoration-none">{{ seller.profile.display_name }}</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Form -->
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-3">How do you want to exchange?</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        {{ form.exchange_method }}
+                        {% if form.exchange_method.errors %}
+                        <div class="alert alert-danger small mt-2">{{ form.exchange_method.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                            <strong>Message to seller (optional)</strong>
+                            <span class="text-muted text-italic small">What should the seller know?</span>
+                        </label>
+                        {{ form.notes }}
+                        <small class="text-muted d-block mt-2">
+                            💡 Examples: "Can meet at SM Mall Sat afternoon", "Available weekends after 2pm", "Need delivery", etc.
+                        </small>
+                        {% if form.notes.errors %}
+                        <div class="alert alert-danger small mt-2">{{ form.notes.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-ubelt">
+                            <i class="bi bi-check-circle me-2"></i> Send Purchase Request
+                        </button>
+                        <a href="{{ listing.get_absolute_url }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Info Box -->
+            <div class="alert alert-info small">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>What happens next?</strong><br>
+                The seller will receive your purchase request and can confirm with their details (meeting location, time, contact info, etc.). Once confirmed, you can proceed with the exchange!
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card p-3 sticky-top" style="top: 20px;">
+                <h6 class="fw-bold mb-3">Purchase Summary</h6>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Item price</span>
+                    <strong>₱{{ listing.price|floatformat:2 }}</strong>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <strong>Total</strong>
+                    <strong style="font-size: 1.2rem; color: var(--ubelt-gold);">₱{{ listing.price|floatformat:2 }}</strong>
+                </div>
+                <p class="small text-muted mt-3 mb-0">
+                    <i class="bi bi-shield-check me-1"></i> Payment is arranged directly between you and the seller
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

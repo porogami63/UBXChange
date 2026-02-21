@@ -178,11 +178,19 @@ class Notification(models.Model):
         ordering = ['-created_at']
 
 class Transaction(models.Model):
-    """Track completed sales between buyer and seller."""
+    """Track sales between buyer and seller with exchange method tracking."""
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
+        ('pending', 'Pending - Waiting for seller confirmation'),
+        ('confirmed', 'Confirmed - Ready for exchange'),
+        ('completed', 'Completed - Transaction finished'),
         ('cancelled', 'Cancelled'),
+    ]
+    
+    EXCHANGE_METHOD_CHOICES = [
+        ('in_person', 'Meet in Person'),
+        ('gcash', 'GCash (or similar e-wallet)'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('other', 'Other arrangement'),
     ]
 
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='purchases')
@@ -190,7 +198,11 @@ class Transaction(models.Model):
     listing = models.ForeignKey(Listing, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    exchange_method = models.CharField(max_length=20, choices=EXCHANGE_METHOD_CHOICES, default='in_person')
+    notes = models.TextField(blank=True, help_text='Buyer notes about delivery/exchange (e.g., preferred meetup location)')
+    seller_notes = models.TextField(blank=True, help_text='Seller confirmation notes (e.g., availability, location)')
     created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

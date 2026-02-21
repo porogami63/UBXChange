@@ -119,41 +119,125 @@
 {% endblock %}
 
 {% block content %}
-<h1 class="font-display fw-bold mb-4" style="color: var(--color-text);"><i class="bi bi-envelope me-2"></i>Messages</h1>
+<h1 class="font-display fw-bold mb-4" style="color: var(--color-text);"><i class="bi bi-chat-bubble me-2"></i>Inbox</h1>
 
-{% if conversations %}
-<div class="conversations-list">
-    {% for item in conversations %}
-    <a href="{% url 'marketplace:conversation' item.conversation.pk %}" class="conversation-item{% if item.is_unread %} unread{% endif %} text-decoration-none" style="display: flex; gap: 1rem;">
-        <div class="conversation-avatar">
-            {{ item.other_display_name|first|upper }}
-        </div>
-        <div class="conversation-info">
-            <div class="conversation-name">
-                <strong>{{ item.other_display_name }}</strong>
-                {% if item.conversation.listing %}
-                <span class="conversation-listing-badge">{{ item.conversation.listing.title|truncatechars:25 }}</span>
-                {% endif %}
-            </div>
-            {% if item.last_message %}
-            <p class="conversation-preview">{{ item.last_message.body|truncatechars:75 }}</p>
-            {% else %}
-            <p class="conversation-preview" style="color: var(--ubelt-gold); font-style: italic;">Start a conversation...</p>
-            {% endif %}
-        </div>
-        <div class="conversation-meta">
-            {% if item.last_message %}
-            <small class="conversation-time">{{ item.last_message.created_at|timesince }} ago</small>
-            {% endif %}
-        </div>
-    </a>
-    {% endfor %}
+<!-- Tabs for Messages and Transactions -->
+{% if conversations or transactions %}
+<div class="mb-4">
+    <ul class="nav nav-tabs nav-fill" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="true">
+                <i class="bi bi-chat-dots me-2"></i>Messages {% if conversations %}<span class="badge bg-secondary ms-2">{{ conversations|length }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
+                <i class="bi bi-receipt me-2"></i>Transactions {% if transactions %}<span class="badge bg-warning ms-2">{{ transactions|length }}</span>{% endif %}
+            </button>
+        </li>
+    </ul>
 </div>
+
+<div class="tab-content">
+    <!-- Messages Tab -->
+    <div class="tab-pane fade show active" id="messages" role="tabpanel" aria-labelledby="messages-tab">
+        {% if conversations %}
+        <div class="conversations-list">
+            {% for item in conversations %}
+            <a href="{% url 'marketplace:conversation' item.conversation.pk %}" class="conversation-item{% if item.is_unread %} unread{% endif %} text-decoration-none" style="display: flex; gap: 1rem;">
+                <div class="conversation-avatar">
+                    {{ item.other_display_name|first|upper }}
+                </div>
+                <div class="conversation-info">
+                    <div class="conversation-name">
+                        <strong>{{ item.other_display_name }}</strong>
+                        {% if item.conversation.listing %}
+                        <span class="conversation-listing-badge">{{ item.conversation.listing.title|truncatechars:25 }}</span>
+                        {% endif %}
+                    </div>
+                    {% if item.last_message %}
+                    <p class="conversation-preview">{{ item.last_message.body|truncatechars:75 }}</p>
+                    {% else %}
+                    <p class="conversation-preview" style="color: var(--ubelt-gold); font-style: italic;">Start a conversation...</p>
+                    {% endif %}
+                </div>
+                <div class="conversation-meta">
+                    {% if item.last_message %}
+                    <small class="conversation-time">{{ item.last_message.created_at|timesince }} ago</small>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-inbox">
+            <i class="bi bi-chat-dots"></i>
+            <p><strong>No messages yet</strong></p>
+            <p style="font-size: 0.9rem;">Message a seller from a listing page to start a conversation.</p>
+            <a href="{% url 'marketplace:listing_list' %}" class="btn btn-ubelt mt-3">Browse Listings</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Transactions Tab -->
+    <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+        {% if transactions %}
+        <div class="transactions-list">
+            {% for txn in transactions %}
+            <a href="{% url 'marketplace:transaction_detail' txn.pk %}" class="conversation-item text-decoration-none" style="display: flex; gap: 1rem;">
+                <div class="conversation-avatar" style="background: {% if txn.status == 'pending' %}#ffc107{% elif txn.status == 'confirmed' %}#28a745{% else %}#6c757d{% endif %};">
+                    {% if txn.buyer == user %}
+                        🛒
+                    {% else %}
+                        🏪
+                    {% endif %}
+                </div>
+                <div class="conversation-info">
+                    <div class="conversation-name">
+                        <strong>
+                            {% if txn.buyer == user %}
+                                Buying from {{ txn.seller.username }}
+                            {% else %}
+                                Selling to {{ txn.buyer.username }}
+                            {% endif %}
+                        </strong>
+                        {% if txn.listing %}
+                        <span class="conversation-listing-badge">{{ txn.listing.title|truncatechars:25 }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="conversation-preview">
+                        {% if txn.status == 'pending' %}
+                            <i class="bi bi-hourglass-split" style="color: #ff9800;"></i> Waiting for seller to confirm
+                        {% elif txn.status == 'confirmed' %}
+                            <i class="bi bi-check-circle" style="color: #28a745;"></i> Ready to exchange via {{ txn.get_exchange_method_display|lower }}
+                        {% else %}
+                            {{ txn.status|title }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="conversation-meta">
+                    <small class="conversation-time">₱{{ txn.price|floatformat:0 }}</small>
+                    <small class="conversation-time">{{ txn.created_at|timesince }} ago</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-inbox">
+            <i class="bi bi-receipt"></i>
+            <p><strong>No transactions yet</strong></p>
+            <p style="font-size: 0.9rem;">Click "Buy Now" on a listing to start a transaction.</p>
+            <a href="{% url 'marketplace:listing_list' %}" class="btn btn-ubelt mt-3">Browse Listings</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {% else %}
 <div class="empty-inbox">
     <i class="bi bi-inbox"></i>
-    <p><strong>No messages yet</strong></p>
-    <p style="font-size: 0.9rem;">Message a seller from a listing page to start a conversation.</p>
+    <p><strong>Your inbox is empty</strong></p>
+    <p style="font-size: 0.9rem;">Browse listings and start buying or selling!</p>
     <a href="{% url 'marketplace:listing_list' %}" class="btn btn-ubelt mt-3">Browse Listings</a>
 </div>
 {% endif %}
