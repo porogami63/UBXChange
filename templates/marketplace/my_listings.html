@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}My Listings{% endblock %}
+{% block content %}
+<h1 class="font-display fw-bold mb-4" style="color: var(--ubelt-navy);">My Listings</h1>
+<p><a href="{% url 'marketplace:listing_create' %}" class="btn btn-ubelt"><i class="bi bi-plus me-1"></i> New Listing</a></p>
+<div class="row g-4">
+    {% for listing in listings %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="card listing-card h-100">
+            <a href="{% url 'marketplace:listing_detail' listing.pk %}" class="text-decoration-none text-dark">
+                {% if listing.image %}
+                <img src="{{ listing.image.url }}" class="card-img-top" alt="{{ listing.title }}">
+                {% else %}
+                <div class="card-img-placeholder"><i class="bi bi-image"></i></div>
+                {% endif %}
+                <div class="card-body">
+                    <span class="price-tag">₱{{ listing.price|floatformat:0 }}</span>
+                    <h6 class="card-title mt-1 mb-2 text-truncate">{{ listing.title }}</h6>
+                    {% if listing.is_sold %}
+                    <span class="badge bg-secondary">Sold</span>
+                    {% else %}
+                    <span class="badge bg-success">Active</span>
+                    {% endif %}
+                    {% if listing.school %}
+                    {% include 'marketplace/_school_badge.html' with school=listing.school %}
+                    {% endif %}
+                </div>
+            </a>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{% url 'marketplace:listing_edit' listing.pk %}" class="btn btn-sm btn-outline-ubelt">Edit</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center text-muted py-5">
+        <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+        <p>You haven't posted any listings yet.</p>
+        <a href="{% url 'marketplace:listing_create' %}" class="btn btn-ubelt">Post Your First Listing</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

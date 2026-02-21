@@ -1,0 +1,477 @@
+{% extends 'base.html' %}
+{% block title %}{{ profile_user.get_full_name|default:profile_user.username }}'s Profile{% endblock %}
+{% block extra_css %}
+<style>
+    .profile-hero {
+        background: linear-gradient(135deg, var(--ubelt-navy) 0%, #2d4a6f 100%);
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .profile-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: rgba(201, 162, 39, 0.1);
+    }
+    .profile-container {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 2rem;
+        padding: 0 1rem;
+    }
+    .profile-avatar {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        border: 5px solid white;
+        object-fit: cover;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        flex-shrink: 0;
+    }
+    .profile-avatar-placeholder {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        border: 5px solid white;
+        background: linear-gradient(135deg, var(--ubelt-gold) 0%, #a67e1f 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        flex-shrink: 0;
+    }
+    .profile-info {
+        color: white;
+        padding-bottom: 0.5rem;
+    }
+    .profile-name {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0 0 0.5rem 0;
+        letter-spacing: -0.02em;
+    }
+    .profile-school {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0 0 0.5rem 0;
+    }
+    .rating-display {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .rating-stars {
+        font-size: 1.1rem;
+        color: var(--ubelt-gold);
+        letter-spacing: 2px;
+    }
+    .rating-text {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .review-count {
+        font-size: 0.85rem;
+        opacity: 0.85;
+    }
+
+    .content-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--ubelt-navy);
+        margin-bottom: 0.5rem;
+    }
+    .stat-label {
+        font-size: 0.85rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .sections {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+    .section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+    }
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--ubelt-navy);
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--ubelt-gold);
+    }
+    
+    .listings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.5rem;
+    }
+    .listing-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: all 0.3s;
+        border: 1px solid #e9ecef;
+    }
+    .listing-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+    .listing-image {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        background: #e9ecef;
+    }
+    .listing-info {
+        padding: 1rem;
+    }
+    .listing-title {
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        font-size: 0.95rem;
+        color: var(--ubelt-navy);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .listing-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--ubelt-gold);
+    }
+
+    .reviews-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .review-item {
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border-left: 4px solid var(--ubelt-gold);
+    }
+    .review-header {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+    .review-rating {
+        font-size: 1.1rem;
+        color: var(--ubelt-gold);
+        letter-spacing: 2px;
+    }
+    .review-author {
+        font-weight: 600;
+        color: var(--ubelt-navy);
+        margin-bottom: 0.25rem;
+    }
+    .review-date {
+        font-size: 0.85rem;
+        color: #999;
+    }
+    .review-comment {
+        color: #555;
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .btn-primary {
+        flex: 1;
+        padding: 1rem;
+        background: linear-gradient(135deg, var(--ubelt-navy) 0%, #2d4a6f 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(26, 43, 74, 0.3);
+    }
+    .btn-secondary {
+        flex: 1;
+        padding: 1rem;
+        background: white;
+        color: var(--ubelt-navy);
+        border: 2px solid var(--ubelt-gold);
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .btn-secondary:hover {
+        background: var(--ubelt-gold);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #999;
+    }
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .profile-bio {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .sidebar-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--ubelt-gold);
+    }
+    .sidebar-label {
+        font-weight: 600;
+        color: var(--ubelt-navy);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .sidebar-value {
+        font-size: 1rem;
+        color: #333;
+    }
+
+    @media (max-width: 768px) {
+        .profile-container {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .profile-info {
+            padding-bottom: 0;
+        }
+        .section {
+            grid-column: 1 / -1;
+        }
+        .sections {
+            grid-template-columns: 1fr;
+        }
+        .listings-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        }
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-hero">
+    <div class="content-wrapper">
+        <div class="profile-container">
+            {% if profile.google_avatar_url %}
+                <img src="{{ profile.google_avatar_url }}" alt="Profile" class="profile-avatar">
+            {% elif profile.avatar %}
+                <img src="{{ profile.avatar.url }}" alt="Profile" class="profile-avatar">
+            {% else %}
+                <div class="profile-avatar-placeholder"></div>
+            {% endif %}
+            <div class="profile-info">
+                <h1 class="profile-name">{{ profile.display_name }}</h1>
+                {% if profile.school %}
+                    <p class="profile-school">{{ profile.school.name }}</p>
+                {% endif %}
+                <div class="rating-display">
+                    <span class="rating-stars">
+                        {% if profile.average_rating >= 5 %}⭐⭐⭐⭐⭐{% elif profile.average_rating >= 4 %}⭐⭐⭐⭐ {{ profile.average_rating|floatformat:1 }}{% elif profile.average_rating >= 3 %}⭐⭐⭐ {{ profile.average_rating|floatformat:1 }}{% elif profile.average_rating >= 2 %}⭐⭐ {{ profile.average_rating|floatformat:1 }}{% else %}⭐ {{ profile.average_rating|floatformat:1 }}{% endif %}
+                    </span>
+                    <span class="review-count">({{ profile.review_count }} review{{ profile.review_count|pluralize }})</span>
+                </div>
+                <p class="rating-text">Member since {{ profile_user.date_joined|date:"b Y" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-wrapper">
+    {% if request.user != profile_user %}
+    <div class="action-buttons">
+        <a href="{% url 'marketplace:message_send' profile_user.listings.first.id %}" class="btn-primary">
+            Message Seller
+        </a>
+        {% if not has_reviewed %}
+            <a href="{% url 'marketplace:leave_review' profile_user.username %}" class="btn-secondary">
+                Leave Review
+            </a>
+        {% else %}
+            <a href="{% url 'marketplace:leave_review' profile_user.username %}" class="btn-secondary">
+                Edit Review
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="profile-stats">
+        <div class="stat-card">
+            <div class="stat-number">{{ listings.count }}</div>
+            <div class="stat-label">Active Listings</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ profile.total_sold }}</div>
+            <div class="stat-label">Items Sold</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ profile.average_rating|floatformat:1 }}/5</div>
+            <div class="stat-label">Average Rating</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ profile.review_count }}</div>
+            <div class="stat-label">Total Reviews</div>
+        </div>
+    </div>
+
+    <div class="sections">
+        <div class="section">
+            {% if profile.bio %}
+                <div class="profile-bio">
+                    <br><strong>About:</strong><br>{{ profile.bio }}
+                </div>
+            {% endif %}
+
+            <h2 class="section-title">Current Listings ({{ listings.count }})</h2>
+            {% if listings %}
+                <div class="listings-grid">
+                    {% for listing in listings %}
+                        <a href="{{ listing.get_absolute_url }}" class="listing-card">
+                            {% if listing.image %}
+                                <img src="{{ listing.image.url }}" alt="{{ listing.title }}" class="listing-image">
+                            {% else %}
+                                <div class="listing-image" style="background: linear-gradient(135deg, var(--ubelt-navy), var(--ubelt-gold)); display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">📦</div>
+                            {% endif %}
+                            <div class="listing-info">
+                                <h3 class="listing-title">{{ listing.title }}</h3>
+                                <div class="listing-price">₱{{ listing.price }}</div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>No active listings at the moment.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div>
+            {% if profile.contact_info or profile.address or profile.phone %}
+            <div class="sidebar-section">
+                <div class="sidebar-label">Contact Info</div>
+                {% if profile.contact_info %}
+                    <div class="sidebar-value">{{ profile.contact_info }}</div>
+                {% endif %}
+                {% if profile.phone %}
+                    <div class="sidebar-value">📱 {{ profile.phone }}</div>
+                {% endif %}
+                {% if profile.address %}
+                    <div class="sidebar-value">📍 {{ profile.address }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <h2 class="section-title">Reviews ({{ profile.review_count }})</h2>
+            {% if reviews %}
+                <div class="reviews-container">
+                    {% for review in reviews %}
+                        <div class="review-item">
+                            <div class="review-header">
+                                <div>
+                                    <div class="review-author">{{ review.reviewer.get_full_name|default:review.reviewer.username }}</div>
+                                    <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
+                                </div>
+                                <div class="review-rating">
+                                    {% for star in "12345" %}
+                                        {% if star|add:"0" <= review.rating %}⭐{% else %}☆{% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if review.comment %}
+                                <p class="review-comment">{{ review.comment }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">⭐</div>
+                    <p>No reviews yet.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Browse Listings{% endblock %}
+{% block content %}
+<div class="row">
+    <aside class="col-lg-3 mb-4">
+        <div class="card p-3 sticky-top" style="top: 1rem;">
+            <h5 class="font-display fw-bold mb-3">Filters</h5>
+            <form method="get" class="filter-form">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Search</label>
+                    <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search listings...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All</option>
+                        {% for c in categories %}
+                        <option value="{{ c.slug }}" {% if selected_category == c.slug %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">School</label>
+                    <select name="school" class="form-select">
+                        <option value="">All</option>
+                        {% for s in schools %}
+                        <option value="{{ s.id }}" {% if selected_school == s.id|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Min ₱</label>
+                        <input type="number" name="min_price" value="{{ min_price }}" class="form-control" placeholder="0" min="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Max ₱</label>
+                        <input type="number" name="max_price" value="{{ max_price }}" class="form-control" placeholder="∞" min="0">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Sort</label>
+                    <select name="sort" class="form-select">
+                        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+                        <option value="price_low" {% if sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-ubelt w-100">Apply</button>
+            </form>
+        </div>
+    </aside>
+    <div class="col-lg-9">
+        <h1 class="font-display fw-bold mb-4" style="color: var(--ubelt-navy);">Browse Listings</h1>
+        <div class="row g-4">
+            {% for listing in listings %}
+            <div class="col-6 col-md-4">
+                <a href="{% url 'marketplace:listing_detail' listing.pk %}" class="text-decoration-none text-dark">
+                    <div class="card listing-card h-100">
+                        {% if listing.image %}
+                        <img src="{{ listing.image.url }}" class="card-img-top" alt="{{ listing.title }}">
+                        {% else %}
+                        <div class="card-img-placeholder"><i class="bi bi-image"></i></div>
+                        {% endif %}
+                        <div class="card-body">
+                            <span class="price-tag">₱{{ listing.price|floatformat:0 }}</span>
+                            <h6 class="card-title mt-1 mb-2 text-truncate">{{ listing.title }}</h6>
+                            {% if listing.school %}
+                            {% include 'marketplace/_school_badge.html' with school=listing.school %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center text-muted py-5">
+                <i class="bi bi-search fs-1 d-block mb-2"></i>
+                <p>No listings match your filters.</p>
+                <a href="{% url 'marketplace:listing_list' %}" class="btn btn-ubelt">Clear Filters</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

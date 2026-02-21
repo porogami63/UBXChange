@@ -1,0 +1,6 @@
+{% comment %}Use: {% include 'marketplace/_school_badge.html' with school=listing.school %}{% endcomment %}
+{% if school %}
+<span class="badge badge-school" style="background-color: {{ school.primary_color }}20; color: {{ school.primary_color }}; border-color: {{ school.primary_color }}60;">
+    {{ school.short_name|default:school.name }}
+</span>
+{% endif %}
