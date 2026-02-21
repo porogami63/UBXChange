@@ -66,43 +66,37 @@
         align-items: center;
         gap: 0.5rem;
         cursor: pointer;
+        position: relative;
     }
     .rating-option input[type="radio"] {
         display: none;
     }
     .rating-star {
         font-size: 2.5rem;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
         opacity: 0.3;
         filter: grayscale(100%);
     }
+    /* When radio is checked, fill the star and all previous siblings */
     .rating-option input[type="radio"]:checked ~ .rating-star {
         opacity: 1;
         filter: grayscale(0%);
         transform: scale(1.2);
     }
-    /* Progressive fill on hover - when hovering over a star, all previous stars light up */
-    .rating-selector:hover .rating-option:hover .rating-star,
-    .rating-selector:hover .rating-option:hover ~ .rating-option .rating-star {
+    /* When hovering, fill this star and show it's being hovered */
+    .rating-option:hover .rating-star {
+        opacity: 0.9;
+        filter: grayscale(0%);
+        transform: scale(1.3);
+    }
+    /* All rating options before a hovered one should also light up on hover */
+    .rating-option:hover ~ .rating-option .rating-star {
         opacity: 1;
         filter: grayscale(0%);
         transform: scale(1.15);
     }
-    /* Also highlight the hovered star itself */
-    .rating-selector:hover .rating-option:hover {
-        transform: scale(1.05);
-    }
-    .rating-selector:hover .rating-option:hover .rating-star {
-        transform: scale(1.25);
-    }
-    /* Show previously filled stars when hovering */
-    .rating-option:hover .rating-star,
-    .rating-option input[type="radio"]:checked ~ .rating-star {
-        opacity: 1;
-        filter: grayscale(0%);
-    }
-    /* All stars before hovered one get filled */
-    .rating-option:hover .rating-star ~ .rating-option .rating-star {
+    /* Reset siblings after hover */
+    .rating-option ~ .rating-option:hover .rating-star ~ .rating-star {
         opacity: 0.3;
         filter: grayscale(100%);
         transform: scale(1);
@@ -277,5 +271,40 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ratingOptions = document.querySelectorAll('.rating-option');
+    
+    ratingOptions.forEach((option, index) => {
+        option.addEventListener('mouseenter', function() {
+            // Clear previous hover states
+            ratingOptions.forEach(opt => opt.classList.remove('hover-filled'));
+            
+            // Fill this and all previous stars
+            for (let i = 0; i <= index; i++) {
+                ratingOptions[i].classList.add('hover-filled');
+            }
+        });
+        
+        option.addEventListener('mouseleave', function() {
+            // Clear hover states
+            ratingOptions.forEach(opt => opt.classList.remove('hover-filled'));
+        });
+    });
+});
+</script>
+
+<style>
+.rating-option.hover-filled .rating-star {
+    opacity: 1 !important;
+    filter: grayscale(0%) !important;
+    transform: scale(1.15) !important;
+}
+
+.rating-option.hover-filled:last-of-type .rating-star {
+    transform: scale(1.3) !important;
+}
+</style>
 {% endblock %}
 

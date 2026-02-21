@@ -124,7 +124,7 @@
 {% if conversations %}
 <div class="conversations-list">
     {% for item in conversations %}
-    <a href="{% url 'marketplace:conversation' item.conversation.pk %}" class="conversation-item {{ 'unread' if item.is_unread else '' }} text-decoration-none" style="display: flex; gap: 1rem;">
+    <a href="{% url 'marketplace:conversation' item.conversation.pk %}" class="conversation-item{% if item.is_unread %} unread{% endif %} text-decoration-none" style="display: flex; gap: 1rem;">
         <div class="conversation-avatar">
             {{ item.other_display_name|first|upper }}
         </div>
