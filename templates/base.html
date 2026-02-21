@@ -158,6 +158,13 @@
         body.dark-mode textarea::placeholder {
             color: #999999 !important;
         }
+        /* Smooth form focus transitions */
+        input, textarea, select {
+            transition: all 0.3s ease;
+        }
+        input:focus, textarea:focus, select:focus {
+            transform: translateY(-1px);
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
