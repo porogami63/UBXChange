@@ -56,3 +56,7 @@ media/listings/*
 # Testing
 .coverage
 htmlcov/
+
+# Exclude nested git repositories
+testing/
+UBELT MARKETPLACE/
