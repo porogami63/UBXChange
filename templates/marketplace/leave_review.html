@@ -279,17 +279,25 @@ document.addEventListener('DOMContentLoaded', function() {
     ratingOptions.forEach((option, index) => {
         option.addEventListener('mouseenter', function() {
             // Clear previous hover states
-            ratingOptions.forEach(opt => opt.classList.remove('hover-filled'));
+            ratingOptions.forEach((opt, idx) => {
+                opt.classList.remove('hover-filled', 'hover-future');
+                // Mark stars after hovered star as "future"
+                if (idx > index) {
+                    opt.classList.add('hover-future');
+                }
+            });
             
-            // Fill this and all previous stars
+            // Fill this and all previous stars (up to and including hovered star)
             for (let i = 0; i <= index; i++) {
                 ratingOptions[i].classList.add('hover-filled');
             }
         });
         
         option.addEventListener('mouseleave', function() {
-            // Clear hover states
-            ratingOptions.forEach(opt => opt.classList.remove('hover-filled'));
+            // Clear all hover states completely
+            ratingOptions.forEach(opt => {
+                opt.classList.remove('hover-filled', 'hover-future');
+            });
         });
     });
 });
@@ -304,6 +312,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .rating-option.hover-filled:last-of-type .rating-star {
     transform: scale(1.3) !important;
+}
+
+.rating-option.hover-future .rating-star {
+    opacity: 0.3 !important;
+    filter: grayscale(100%) !important;
+    transform: scale(1) !important;
 }
 </style>
 {% endblock %}
