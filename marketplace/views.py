@@ -339,6 +339,31 @@ def favorites_list(request):
 
 
 @login_required
+def complete_transaction(request, transaction_id):
+    """Complete a transaction and prompt buyer to rate the seller."""
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    
+    # Only buyer can complete a transaction
+    if transaction.buyer != request.user:
+        messages.error(request, "You don't have permission to complete this transaction.")
+        return redirect('marketplace:inbox')
+    
+    from django.utils import timezone
+    transaction.status = 'completed'
+    transaction.completed_at = timezone.now()
+    transaction.save()
+    
+    if transaction.listing:
+        transaction.listing.is_sold = True
+        transaction.listing.save()
+    
+    messages.success(request, 'Transaction marked as completed! Please rate your experience with the seller.')
+    
+    # Redirect to mandatory rating page
+    return redirect('marketplace:leave_review', username=transaction.seller.username)
+
+
+@login_required
 def notifications_list(request):
     """Show user's notifications and mark them as read."""
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')

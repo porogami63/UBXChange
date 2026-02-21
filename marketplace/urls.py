@@ -18,6 +18,7 @@ urlpatterns = [
     path('messages/', views.inbox, name='inbox'),
     path('messages/<int:pk>/', views.conversation_view, name='conversation'),
     path('listings/<int:pk>/message/', views.message_send, name='message_send'),
+    path('transactions/<int:transaction_id>/complete/', views.complete_transaction, name='complete_transaction'),
     path('forum/', views.forum_index, name='forum'),
     path('forum/new/', views.forum_create_post, name='forum_create'),
     path('forum/<int:pk>/', views.forum_post_detail, name='forum_post'),
