@@ -68,6 +68,14 @@
                             {% if listing.school %}
                             {% include 'marketplace/_school_badge.html' with school=listing.school %}
                             {% endif %}
+                            {% if listing.seller.profile.average_rating > 0 %}
+                            <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e0e0e0;">
+                                <small style="color: var(--ubelt-gold);">
+                                    {% for star in "12345" %}{% if star|add:"0" <= listing.seller.profile.average_rating %}⭐{% else %}☆{% endif %}{% endfor %}
+                                    <span style="color: #999; margin-left: 0.25rem;">{{ listing.seller.profile.average_rating|floatformat:1 }}</span>
+                                </small>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </a>

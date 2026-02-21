@@ -8,7 +8,16 @@
 <div class="card mb-4">
     <div class="card-body">
         <h1 class="font-display fw-bold h4 mb-2" style="color: var(--ubelt-navy);">{{ post.title }}</h1>
-        <p class="text-muted small mb-3">by {{ post.author.username }} · {{ post.created_at|timesince }} ago</p>
+        <p class="text-muted small mb-3">
+            by <a href="{% url 'marketplace:public_profile' post.author.username %}" style="color: var(--ubelt-navy); text-decoration: none; font-weight: 600;">{{ post.author.username }}</a>
+            {% if post.author.profile.average_rating > 0 %}
+                <span style="margin-left: 0.5rem; color: var(--ubelt-gold);">
+                    {% for star in "12345" %}{% if star|add:"0" <= post.author.profile.average_rating %}⭐{% else %}☆{% endif %}{% endfor %}
+                    <span style="font-size: 0.9rem; color: #999;">{{ post.author.profile.average_rating|floatformat:1 }}</span>
+                </span>
+            {% endif %}
+            · {{ post.created_at|timesince }} ago
+        </p>
         <p class="card-text">{{ post.body|linebreaks }}</p>
         {% if post.listing %}
         <hr>

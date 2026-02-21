@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.urls import reverse
 from django.contrib.auth.models import User
 from allauth.socialaccount.signals import social_account_updated, pre_social_login
-from .models import Message, ForumReply, Notification, Profile
+from .models import Message, ForumReply, Notification, Profile, Review
 
 
 @receiver(post_save, sender=Message)
@@ -19,6 +19,19 @@ def update_conversation_timestamp(sender, instance, created, **kwargs):
                 user=participant,
                 message=f"New message from {sender_user.username}",
                 url=reverse('marketplace:conversation', args=[conversation.pk]),
+            )
+
+
+@receiver(post_save, sender=Review)
+def notify_seller_on_review(sender, instance, created, **kwargs):
+    """Notify seller when they receive a new review (but not their own reviews)."""
+    if created:
+        # Only notify if it's a new review and not a self-review
+        if instance.reviewer_id != instance.seller_id:
+            Notification.objects.create(
+                user=instance.seller,
+                message=f"New review from {instance.reviewer.username}: {instance.rating}/5 stars",
+                url=reverse('marketplace:public_profile', args=[instance.reviewer.username]),
             )
 
 

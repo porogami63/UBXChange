@@ -19,7 +19,15 @@
                 <h5 class="card-title mb-1"><a href="{% url 'marketplace:forum_post' post.pk %}" class="text-dark text-decoration-none">{{ post.title }}</a></h5>
                 <small class="text-muted">{{ post.created_at|timesince }} ago</small>
             </div>
-            <p class="card-text text-muted small mb-2">by {{ post.author.username }}</p>
+            <p class="card-text text-muted small mb-2">
+                by <a href="{% url 'marketplace:public_profile' post.author.username %}" style="color: var(--ubelt-navy); text-decoration: none; font-weight: 600;">{{ post.author.username }}</a>
+                {% if post.author.profile.average_rating > 0 %}
+                    <span style="margin-left: 0.5rem; color: var(--ubelt-gold);">
+                        {% for star in "12345" %}{% if star|add:"0" <= post.author.profile.average_rating %}⭐{% else %}☆{% endif %}{% endfor %}
+                        <span style="font-size: 0.9rem; color: #999;">{{ post.author.profile.average_rating|floatformat:1 }}</span>
+                    </span>
+                {% endif %}
+            </p>
             <p class="card-text mb-3">{{ post.body|truncatewords:50 }}</p>
             {% if post.listing %}
             <a href="{% url 'marketplace:listing_detail' post.listing.pk %}" class="text-decoration-none">

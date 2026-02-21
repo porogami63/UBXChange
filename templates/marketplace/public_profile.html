@@ -410,7 +410,7 @@
                             {% if listing.image %}
                                 <img src="{{ listing.image.url }}" alt="{{ listing.title }}" class="listing-image">
                             {% else %}
-                                <div class="listing-image" style="background: linear-gradient(135deg, var(--ubelt-navy), var(--ubelt-gold)); display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">📦</div>
+                                <div class="listing-image" style="background: linear-gradient(135deg, var(--ubelt-navy), var(--ubelt-gold)); display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;"></div>
                             {% endif %}
                             <div class="listing-info">
                                 <h3 class="listing-title">{{ listing.title }}</h3>
@@ -421,7 +421,6 @@
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-state-icon">📭</div>
                     <p>No active listings at the moment.</p>
                 </div>
             {% endif %}
@@ -435,10 +434,10 @@
                     <div class="sidebar-value">{{ profile.contact_info }}</div>
                 {% endif %}
                 {% if profile.phone %}
-                    <div class="sidebar-value">📱 {{ profile.phone }}</div>
+                    <div class="sidebar-value">{{ profile.phone }}</div>
                 {% endif %}
                 {% if profile.address %}
-                    <div class="sidebar-value">📍 {{ profile.address }}</div>
+                    <div class="sidebar-value">{{ profile.address }}</div>
                 {% endif %}
             </div>
             {% endif %}
@@ -467,7 +466,6 @@
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-state-icon">⭐</div>
                     <p>No reviews yet.</p>
                 </div>
             {% endif %}
