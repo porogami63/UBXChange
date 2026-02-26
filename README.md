@@ -1,5 +1,5 @@
-# U-Belt Student Marketplace
-
+# UBXchange
+Made by Students for Students 
 A Django marketplace for students in the University Belt (U-Belt) area of Manila, Philippines. Buy and sell textbooks, school supplies, electronics, dorm items, and more among students from UST, FEU, UE, San Beda, UP Manila, DLSU, TIP Manila, CEU, LCCM, NTC, and other U-Belt schools.
 
 ## Features
