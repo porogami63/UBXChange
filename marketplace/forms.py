@@ -59,7 +59,7 @@ class ListingForm(forms.ModelForm):
         model = Listing
         fields = [
             'title', 'description', 'price', 'category', 'condition',
-            'image', 'school', 'contact_info'
+            'campus', 'image', 'school', 'contact_info'
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),

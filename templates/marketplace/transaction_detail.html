@@ -4,16 +4,20 @@
 {% block extra_css %}
 <style>
     .txn-layout {
-        background: linear-gradient(135deg, #1F1F1F, #2D2D2D);
+        background: var(--color-bg);
         border-radius: 20px;
         padding: 1.5rem;
-        color: #e5e7eb;
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     }
     .txn-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 1rem;
     }
     .txn-status-pill {
         padding: 0.4rem 0.9rem;
@@ -24,13 +28,14 @@
         align-items: center;
         gap: 0.4rem;
     }
-    .txn-status-pending { background: rgba(234, 179, 8, 0.15); color: #facc15; }
-    .txn-status-confirmed { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-    .txn-status-completed { background: rgba(22, 163, 74, 0.2); color: #22c55e; }
-    .txn-status-cancelled { background: rgba(148, 163, 184, 0.15); color: #9ca3af; }
+    .txn-status-pending { background: #fef9c3; color: #854d0e; }
+    .txn-status-confirmed { background: #dcfce7; color: #166534; }
+    .txn-status-completed { background: #dcfce7; color: #15803d; }
+    .txn-status-cancelled { background: #f1f5f9; color: #475569; }
 
     .txn-chat-shell {
-        background: rgba(31, 31, 31, 0.95);
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
         border-radius: 16px;
         padding: 1rem;
         height: 520px;
@@ -42,6 +47,8 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-border);
     }
     .txn-user-chip {
         display: flex;
@@ -52,7 +59,7 @@
         width: 40px;
         height: 40px;
         border-radius: 999px;
-        background: radial-gradient(circle at 0 0, #38bdf8, #0f172a);
+        background: #97C2EC;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -74,57 +81,65 @@
     }
     .txn-message-row {
         display: flex;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
     }
     .txn-message-row.self {
         justify-content: flex-end;
     }
     .txn-bubble {
         max-width: 80%;
-        padding: 0.55rem 0.9rem;
+        padding: 0.65rem 1rem;
         border-radius: 14px;
         font-size: 0.9rem;
-        line-height: 1.35;
+        line-height: 1.4;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
     }
     .txn-bubble.self {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
-        color: #ecfdf5;
+        background: #97C2EC;
+        color: white;
         border-bottom-right-radius: 4px;
     }
     .txn-bubble.other {
-        background: rgba(45, 45, 45, 0.95);
-        border: 1px solid rgba(60, 60, 60, 0.8);
+        background: white;
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
         border-bottom-left-radius: 4px;
     }
     .txn-bubble-meta {
         font-size: 0.7rem;
-        margin-top: 0.15rem;
-        opacity: 0.7;
+        margin-top: 0.25rem;
+        color: var(--color-text-muted);
     }
     .txn-chat-input textarea {
-        background: rgba(31, 31, 31, 0.98);
-        border-color: rgba(60, 60, 60, 0.9);
-        color: #e5e7eb;
+        background: white;
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
         font-size: 0.9rem;
+        border-radius: 12px;
+        padding: 0.75rem;
     }
     .txn-chat-input textarea:focus {
-        box-shadow: 0 0 0 1px #22c55e;
+        border-color: #97C2EC;
+        box-shadow: 0 0 0 3px rgba(151, 194, 236, 0.15);
+        outline: none;
     }
     .txn-side-card {
-        background: #2D2D2D;
+        background: white;
         border-radius: 16px;
-        padding: 1rem;
-        border: 1px solid rgba(60,60,60,0.8);
-        color: #e5e7eb;
+        padding: 1.25rem;
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
     .txn-item-thumb {
         border-radius: 12px;
         overflow: hidden;
-        background: radial-gradient(circle at 0 0, #38bdf8, #1e293b);
+        background: var(--color-bg-secondary);
         height: 150px;
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 1px solid var(--color-border);
     }
     .txn-item-thumb img {
         width: 100%;
@@ -135,51 +150,74 @@
         font-family: 'Space Grotesk', sans-serif;
         font-size: 1.35rem;
         font-weight: 700;
-        color: #4ade80;
+        color: #059669;
     }
+    /* Dark mode overrides */
+    body.dark-mode .txn-layout {
+        background: #1F1F1F;
+    }
+    body.dark-mode .txn-chat-shell,
+    body.dark-mode .txn-side-card {
+        background: #2D2D2D;
+    }
+    body.dark-mode .txn-bubble.other {
+        background: #3D3D3D;
+        color: #e5e7eb;
+    }
+    body.dark-mode .txn-chat-input textarea {
+        background: #1F1F1F;
+    }
+    
+    body.dark-mode .txn-status-pending { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+    body.dark-mode .txn-status-confirmed { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    body.dark-mode .txn-status-completed { background: rgba(22, 163, 74, 0.2); color: #22c55e; }
+    body.dark-mode .txn-status-cancelled { background: rgba(148, 163, 184, 0.15); color: #9ca3af; }
+
     .txn-meta-label {
         font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #9ca3af;
+        color: var(--color-text-muted);
     }
     .txn-section-label {
         font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: #9ca3af;
+        color: var(--color-text-muted);
     }
     .txn-steps small {
-        color: #9ca3af;
+        color: var(--color-text-muted);
     }
     .txn-steps .step-dot {
-        width: 9px;
-        height: 9px;
+        width: 10px;
+        height: 10px;
         border-radius: 999px;
-        margin-right: 0.4rem;
+        margin-right: 0.6rem;
     }
     .txn-steps .step-active .step-dot {
-        background: #22c55e;
-        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+        background: #97C2EC;
+        box-shadow: 0 0 0 4px rgba(151, 194, 236, 0.3);
     }
     .txn-steps .step-done .step-dot {
-        background: #22c55e;
+        background: #15803d;
     }
     .txn-steps .step-future .step-dot {
-        background: #4b5563;
+        background: var(--color-border);
     }
     .txn-steps .step {
         display: flex;
         align-items: center;
-        margin-bottom: 0.3rem;
-        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--color-text);
     }
     .txn-tag-pill {
         border-radius: 999px;
         padding: 0.3rem 0.7rem;
         font-size: 0.75rem;
-        border: 1px solid rgba(148, 163, 184, 0.6);
-        color: #e5e7eb;
+        border: 1px solid var(--color-border);
+        color: var(--color-text-muted);
+        background: var(--color-bg-secondary);
     }
 </style>
 {% endblock %}
@@ -218,7 +256,7 @@
                 </a>
                 {% endif %}
             {% endif %}
-            <a href="{% url 'marketplace:inbox' %}" class="btn btn-sm btn-outline-light">
+            <a href="{% url 'marketplace:inbox' %}" class="btn btn-sm btn-outline-ubelt">
                 <i class="bi bi-arrow-left me-1"></i> Back to Inbox
             </a>
         </div>
@@ -345,7 +383,7 @@
 
             <!-- Seller confirm + buyer complete blocks -->
             {% if is_seller and transaction.status == 'pending' and confirm_form %}
-            <div class="mt-3 p-3 rounded-3" style="background: rgba(15,118,110,0.1); border: 1px solid rgba(34,197,94,0.3);">
+            <div class="mt-3 p-3 rounded-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div>
                         <div class="txn-section-label">Seller action</div>
@@ -368,17 +406,45 @@
             </div>
             {% endif %}
 
-            {% if is_buyer and transaction.status == 'confirmed' %}
-            <div class="mt-3 p-3 rounded-3" style="background: rgba(22,163,74,0.12); border: 1px solid rgba(34,197,94,0.4);">
+            {% if transaction.status == 'confirmed' %}
+            <div class="mt-3 p-3 rounded-3" style="background: rgba(151, 194, 236, 0.08); border: 1px solid rgba(151, 194, 236, 0.3);">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div>
-                        <div class="txn-section-label text-success">Buyer action</div>
-                        <div class="fw-semibold text-success">Already met and exchanged?</div>
-                        <small class="text-muted d-block">Once everything is done, mark this as completed so you can leave a review.</small>
+                        <div class="txn-section-label" style="color: #4b5563;">Order Completion</div>
+                        <div class="fw-semibold">Have you met and exchanged the items?</div>
+                        <small class="text-muted d-block">Both parties must mark this as completed to finish the transaction.</small>
+                        
+                        <div class="d-flex gap-3 mt-2">
+                            <span class="small {% if transaction.buyer_completed %}text-success{% else %}text-muted{% endif %}">
+                                <i class="bi {% if transaction.buyer_completed %}bi-check-circle-fill{% else %}bi-circle{% endif %} me-1"></i> Buyer Completed
+                            </span>
+                            <span class="small {% if transaction.seller_completed %}text-success{% else %}text-muted{% endif %}">
+                                <i class="bi {% if transaction.seller_completed %}bi-check-circle-fill{% else %}bi-circle{% endif %} me-1"></i> Seller Completed
+                            </span>
+                        </div>
                     </div>
-                    <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success btn-sm">
-                        <i class="bi bi-check2-circle me-1"></i> Mark as complete
-                    </a>
+                    
+                    {% if is_buyer %}
+                        {% if not transaction.buyer_completed %}
+                        <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success btn-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Mark as complete
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-success btn-sm" disabled>
+                            <i class="bi bi-hourglass-split me-1"></i> Waiting for other party
+                        </button>
+                        {% endif %}
+                    {% elif is_seller %}
+                        {% if not transaction.seller_completed %}
+                        <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success btn-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Mark as complete
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-success btn-sm" disabled>
+                            <i class="bi bi-hourglass-split me-1"></i> Waiting for other party
+                        </button>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -408,7 +474,7 @@
                         </div>
                         <div class="txn-price mb-2">₱{{ transaction.price|floatformat:2 }}</div>
                         {% if transaction.listing %}
-                        <a href="{{ transaction.listing.get_absolute_url }}" class="btn btn-outline-light btn-sm">
+                        <a href="{{ transaction.listing.get_absolute_url }}" class="btn btn-outline-ubelt btn-sm">
                             View listing
                         </a>
                         {% endif %}

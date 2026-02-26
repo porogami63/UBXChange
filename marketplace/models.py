@@ -42,11 +42,19 @@ class Listing(models.Model):
         ('used', 'Well Used'),
     ]
 
+    CAMPUS_CHOICES = [
+        ('manila', 'Manila'),
+        ('dapitan', 'Dapitan'),
+        ('pureza', 'Pureza'),
+        ('public', 'Public'),
+    ]
+
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='good')
+    campus = models.CharField(max_length=20, choices=CAMPUS_CHOICES, blank=True, null=True)
     image = models.ImageField(upload_to='listings/', blank=True, null=True)
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listings')
     school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=True)
@@ -138,6 +146,14 @@ class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     body = models.TextField()
+    is_offer = models.BooleanField(default=False)
+    offer_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    offer_status = models.CharField(
+        max_length=20, 
+        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('declined', 'Declined')],
+        default='pending',
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_hidden = models.BooleanField(default=False, help_text='Moderator-hidden content')
     moderation_notes = models.TextField(blank=True, help_text='Internal moderator notes')
@@ -213,6 +229,8 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    buyer_completed = models.BooleanField(default=False, help_text='Buyer confirmed exchange happened')
+    seller_completed = models.BooleanField(default=False, help_text='Seller confirmed exchange happened')
     admin_notes = models.TextField(blank=True, help_text='Internal admin notes for dispute/fraud follow-up')
     flagged_for_review = models.BooleanField(default=False, help_text='Flagged by admin for follow-up')
     admin_cancelled_at = models.DateTimeField(null=True, blank=True)

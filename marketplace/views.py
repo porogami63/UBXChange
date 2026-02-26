@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
@@ -52,6 +53,14 @@ CATEGORY_OVERVIEW = [
     ('study-materials', 'Study Materials', 'Lecture notes & study guides'),
 ]
 
+SUGGESTED_MEETUP_POINTS = {
+    'UST': ['Q-Pavilion (Inside España)', 'España Gate 2', 'P. Noval Gate', 'Dapitan Gate'],
+    'FEU': ['Gate 4 (Morayta)', 'Grandstand/Square', 'Paredes St. Entrance'],
+    'UE': ['Lualhati Square', 'Gastambide Gate', 'S.H. Loyala Entrance'],
+    'NU': ['NU Main Lobby', 'Jocson St. Entrance'],
+    'Public': ['LRT-2 Legarda Station', 'SM San Lazaro (Main Entrance)', 'Isetann Recto', 'LRT-2 Recto Station'],
+}
+
 
 def _get_listing_context(request):
     listings = Listing.objects.filter(is_sold=False).select_related(
@@ -61,7 +70,15 @@ def _get_listing_context(request):
     q = request.GET.get('q', '').strip()
     if q:
         listings = listings.filter(
-            Q(title__icontains=q) | Q(description__icontains=q)
+            Q(title__icontains=q) | 
+            Q(description__icontains=q) |
+            Q(category__name__icontains=q) |
+            Q(school__name__icontains=q) |
+            Q(school__short_name__icontains=q) |
+            Q(product_details__author__icontains=q) |
+            Q(product_details__brand__icontains=q) |
+            Q(product_details__course_code__icontains=q) |
+            Q(product_details__icontains=q)
         )
 
     category_slug = request.GET.get('category')
@@ -83,6 +100,10 @@ def _get_listing_context(request):
     condition = request.GET.get('condition')
     if condition:
         listings = listings.filter(condition=condition)
+
+    campus = request.GET.get('campus')
+    if campus:
+        listings = listings.filter(campus=campus)
 
     brand = request.GET.get('brand')
     if brand:
@@ -117,9 +138,23 @@ def _get_listing_context(request):
 
     categories = Category.objects.all()
     schools = School.objects.all()
-    filters_active = any([q, category_slug, school_id, min_price, max_price])
+    
+    # Check if any filters are active
+    filters_active = any([
+        q, category_slug, school_id, min_price, max_price, 
+        condition, brand, size, author, attribute
+    ])
+    
     newly_listed = list(listings[:12]) if not filters_active else []
-    trending = list(categories.values_list('name', flat=True)[:12]) if categories.exists() else ['textbooks', 'laptop', 'phone', 'furniture', 'notes']
+    
+    # Improved trending info
+    trending = []
+    if categories.exists():
+        for c in categories[:8]:
+            trending.append({'name': c.name, 'slug': c.slug})
+    else:
+        for t in ['textbooks', 'laptop', 'phone', 'furniture', 'notes']:
+            trending.append({'name': t})
 
     category_cards = []
     listing_with_image = Listing.objects.filter(is_sold=False, image__isnull=False)
@@ -141,12 +176,14 @@ def _get_listing_context(request):
         'categories': categories,
         'schools': schools,
         'condition_choices': Listing.CONDITION_CHOICES,
+        'campus_choices': Listing.CAMPUS_CHOICES,
         'query': q,
         'selected_category': category_slug,
         'selected_school': school_id,
         'min_price': min_price or '',
         'max_price': max_price or '',
         'condition': condition or '',
+        'campus': campus or '',
         'brand': brand or '',
         'size': size or '',
         'author': author or '',
@@ -464,9 +501,16 @@ def favorites_list(request):
 
 @login_required
 def initiate_purchase(request, pk):
-    """Buyer initiates a purchase by selecting exchange method and adding notes."""
+    """Buyer initiates a purchase. Can be at listing price or an agreed offer price."""
     listing = get_object_or_404(Listing, pk=pk)
     
+    # Check if this is from an accepted offer
+    offer_amount = None
+    offer_id = request.GET.get('offer_id')
+    if offer_id:
+        offer_msg = get_object_or_404(Message, pk=offer_id, is_offer=True, offer_status='accepted', sender=request.user)
+        offer_amount = offer_msg.offer_amount
+
     # Can't buy own listing
     if listing.seller == request.user:
         messages.error(request, "You can't buy your own listing!")
@@ -495,14 +539,13 @@ def initiate_purchase(request, pk):
                 buyer=request.user,
                 seller=listing.seller,
                 listing=listing,
-                price=listing.price,
+                price=offer_amount if offer_amount else listing.price,
                 exchange_method=form.cleaned_data['exchange_method'],
                 notes=form.cleaned_data['notes'],
                 status='pending'
             )
             
             # Create notification for seller
-            from django.urls import reverse
             Notification.objects.create(
                 user=listing.seller,
                 message=f"{request.user.username} wants to buy {listing.title}",
@@ -518,6 +561,8 @@ def initiate_purchase(request, pk):
         'form': form,
         'listing': listing,
         'seller': listing.seller,
+        'meetup_points': SUGGESTED_MEETUP_POINTS,
+        'offer_amount': offer_amount,
     })
 
 
@@ -647,43 +692,66 @@ def confirm_transaction(request, transaction_id):
 
 @login_required
 def complete_transaction(request, transaction_id):
-    """Mark transaction as complete and prompt buyer to rate the seller."""
+    """Mark transaction as complete. Requires mutual confirmation from both parties."""
     transaction = get_object_or_404(Transaction, pk=transaction_id)
     
-    # Only buyer can complete
-    if transaction.buyer != request.user:
-        messages.error(request, "Only the buyer can mark this as complete.")
+    # Participant check
+    if request.user != transaction.buyer and request.user != transaction.seller:
+        messages.error(request, "You are not a participant in this transaction.")
         return redirect('marketplace:inbox')
     
     if transaction.status != 'confirmed':
-        messages.error(request, "Transaction must be confirmed first.")
+        messages.error(request, "Transaction must be confirmed by the seller first.")
         return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
     
-    from django.utils import timezone
-    transaction.status = 'completed'
-    transaction.completed_at = timezone.now()
-    transaction.save()
-    
-    if transaction.listing:
-        transaction.listing.is_sold = True
-        transaction.listing.save()
-    
-    # Update seller's sold count
-    seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
-    if seller_profile:
-        seller_profile.total_sold += 1
-        seller_profile.save(update_fields=['total_sold'])
-    
-    # Notify seller
     from django.urls import reverse
-    Notification.objects.create(
-        user=transaction.seller,
-        message=f"{transaction.buyer.username} completed the purchase!",
-        url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
-    )
+    if request.user == transaction.buyer:
+        transaction.buyer_completed = True
+        status_msg = "You've marked this purchase as successful."
+        other_party = transaction.seller
+        other_msg = f"{request.user.username} (Buyer) confirmed the exchange. Please confirm on your end."
+    else:
+        transaction.seller_completed = True
+        status_msg = "You've marked this sale as successful."
+        other_party = transaction.buyer
+        other_msg = f"{request.user.username} (Seller) confirmed the exchange. Please confirm on your end."
     
-    messages.success(request, '✓ Transaction completed! Please rate your experience with the seller.')
-    return redirect('marketplace:leave_review', username=transaction.seller.username)
+    if transaction.buyer_completed and transaction.seller_completed:
+        from django.utils import timezone
+        transaction.status = 'completed'
+        transaction.completed_at = timezone.now()
+        
+        if transaction.listing:
+            transaction.listing.is_sold = True
+            transaction.listing.save()
+            
+        seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
+        if seller_profile:
+            seller_profile.total_sold += 1
+            seller_profile.save(update_fields=['total_sold'])
+
+        # Notify both
+        Notification.objects.create(
+            user=transaction.seller,
+            message="Mutual confirmation received! Sale fully completed.",
+            url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+        )
+        Notification.objects.create(
+            user=transaction.buyer,
+            message="Mutual confirmation received! You can now leave a review.",
+            url=reverse('marketplace:leave_review', kwargs={'username': transaction.seller.username})
+        )
+        messages.success(request, '✓ Transaction fully completed!')
+    else:
+        Notification.objects.create(
+            user=other_party,
+            message=other_msg,
+            url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+        )
+        messages.info(request, f"{status_msg} Waiting for the other party to confirm.")
+
+    transaction.save()
+    return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
 
 
 @login_required
@@ -834,6 +902,10 @@ def message_send(request, pk):
             messages.success(request, 'Message sent!')
             return redirect('marketplace:conversation', pk=conv.pk)
     else:
+        # If jumping straight to an offer, bypass the manual message form
+        if request.GET.get('initial_offer') == '1':
+            return redirect(reverse('marketplace:conversation', kwargs={'pk': conv.pk}) + '?initial_offer=1')
+            
         form = MessageForm()
 
     return render(request, 'marketplace/message_send.html', {
@@ -841,6 +913,78 @@ def message_send(request, pk):
         'listing': listing,
         'conversation': conv,
     })
+
+
+@login_required
+def make_offer(request, pk):
+    """Handle a formal offer sent within a conversation."""
+    conversation = get_object_or_404(Conversation, pk=pk)
+    if request.user not in conversation.participants.all():
+        return redirect('marketplace:inbox')
+    
+    if request.method == 'POST':
+        amount = request.POST.get('amount')
+        if amount:
+            try:
+                amount = float(amount)
+                other_user = conversation.participants.exclude(id=request.user.id).first()
+                
+                body = f"OFFER: ₱{amount:,.2f}"
+                msg = Message.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    body=body,
+                    is_offer=True,
+                    offer_amount=amount,
+                    offer_status='pending'
+                )
+                
+                Notification.objects.create(
+                    user=other_user,
+                    message=f"New offer for {conversation.listing.title if conversation.listing else 'an item'}: ₱{amount:,.2f}",
+                    url=reverse('marketplace:conversation', kwargs={'pk': conversation.pk})
+                )
+                
+                messages.success(request, f"Offer of ₱{amount:,.2f} sent!")
+            except ValueError:
+                messages.error(request, "Invalid offer amount.")
+                
+    return redirect('marketplace:conversation', pk=conversation.pk)
+
+
+@login_required
+def respond_to_offer(request, pk):
+    """Accept or decline an offer message."""
+    message = get_object_or_404(Message, pk=pk, is_offer=True)
+    if message.conversation.listing.seller != request.user:
+        messages.error(request, "Only the seller can respond to offers.")
+        return redirect('marketplace:conversation', pk=message.conversation.pk)
+    
+    action = request.GET.get('action')
+    if action == 'accept':
+        message.offer_status = 'accepted'
+        message.body = f"ACCEPTED OFFER: ₱{message.offer_amount:,.2f}"
+        
+        # Optionally update the listing price? User didn't say, but it makes sense.
+        # For now just notify buyer.
+        Notification.objects.create(
+            user=message.sender,
+            message=f"Your offer for {message.conversation.listing.title} was ACCEPTED!",
+            url=reverse('marketplace:conversation', kwargs={'pk': message.conversation.pk})
+        )
+        messages.success(request, "Offer accepted!")
+    elif action == 'decline':
+        message.offer_status = 'declined'
+        message.body = f"DECLINED OFFER: ₱{message.offer_amount:,.2f}"
+        Notification.objects.create(
+            user=message.sender,
+            message=f"Your offer for {message.conversation.listing.title} was declined.",
+            url=reverse('marketplace:conversation', kwargs={'pk': message.conversation.pk})
+        )
+        messages.info(request, "Offer declined.")
+    
+    message.save()
+    return redirect('marketplace:conversation', pk=message.conversation.pk)
 
 
 # ----- Live Forum -----

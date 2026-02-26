@@ -209,7 +209,12 @@
         <div class="listing-info-card">
             <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="listing-price-main">₱{{ listing.price|floatformat:2 }}</div>
-                <span class="badge bg-secondary">{{ listing.get_condition_display }}</span>
+                <div class="d-flex gap-2">
+                    {% if listing.campus %}
+                    <span class="badge bg-ubelt-dark">{{ listing.get_campus_display }}</span>
+                    {% endif %}
+                    <span class="badge bg-secondary">{{ listing.get_condition_display }}</span>
+                </div>
             </div>
             {% if price_stats %}
             <div class="rounded-3 py-2 px-3 mb-2" style="font-size: 0.9rem; {% if price_stats.tip == 'overpriced' %}background-color: #fef2f2; color: #991b1b;{% elif price_stats.tip == 'great_deal' %}background-color: #f0fdf4; color: #166534;{% else %}background-color: #f0f9ff; color: #0369a1;{% endif %}">
@@ -319,16 +324,21 @@
                         <a href="{% url 'marketplace:initiate_purchase' listing.pk %}" class="btn btn-success flex-grow-1">
                             <i class="bi bi-cart-check me-1"></i> Buy now
                         </a>
-                        <a href="{% url 'marketplace:message_send' listing.pk %}" class="btn btn-outline-ubelt flex-grow-1">
-                            <i class="bi bi-chat-dots me-1"></i> Message
+                        <a href="{% url 'marketplace:message_send' listing.pk %}?initial_offer=1" class="btn btn-offer flex-grow-1">
+                            <i class="bi bi-tag me-1"></i> Make an Offer
                         </a>
-                        {% with contact=listing.contact_info|default:seller_profile.phone|default:seller_profile.contact_info %}
-                        {% if contact %}
-                        <a href="tel:{{ contact }}" class="btn btn-outline-ubelt flex-grow-1">
-                            <i class="bi bi-telephone me-1"></i> Call
-                        </a>
-                        {% endif %}
-                        {% endwith %}
+                        <div class="w-100 d-flex gap-2">
+                            <a href="{% url 'marketplace:message_send' listing.pk %}" class="btn btn-outline-ubelt flex-grow-1">
+                                <i class="bi bi-chat-dots me-1"></i> Message
+                            </a>
+                            {% with contact=listing.contact_info|default:seller_profile.phone|default:seller_profile.contact_info %}
+                            {% if contact %}
+                            <a href="tel:{{ contact }}" class="btn btn-outline-ubelt flex-grow-1">
+                                <i class="bi bi-telephone me-1"></i> Call
+                            </a>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
                     </div>
                     {% else %}
                     <div class="alert alert-info small mb-2">

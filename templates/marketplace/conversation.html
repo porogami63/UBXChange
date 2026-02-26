@@ -137,6 +137,52 @@
         font-weight: 600;
         white-space: nowrap;
     }
+
+    .offer-bubble {
+        border: 2px solid #d97706;
+        background: rgba(217, 119, 6, 0.05) !important;
+        text-align: center;
+        padding: 1.5rem !important;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
+        margin: 1rem 0;
+    }
+
+    .offer-amount {
+        display: block;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #d97706;
+        font-family: 'Space Grotesk', sans-serif;
+        margin-bottom: 0.5rem;
+    }
+
+    .offer-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    .offer-bubble.accepted { border-color: #059669; background: rgba(5, 150, 105, 0.05) !important; }
+    .offer-bubble.accepted .offer-amount { color: #059669; }
+    .offer-bubble.declined { border-color: #dc2626; background: rgba(220, 38, 38, 0.05) !important; }
+    .offer-bubble.declined .offer-amount { color: #dc2626; }
+
+    .offer-amount {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--ubelt-gold);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .offer-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
     
     .conversation-header {
         padding: 1rem 1.5rem;
@@ -180,11 +226,42 @@
     </div>
     
     <div class="messages-container" id="messages-container">
+        <!-- Offer Priority Notice -->
+        <div class="alert alert-warning small mb-3 border-0 py-2" style="background: rgba(217, 119, 6, 0.1); color: #b45309;">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <strong>Note:</strong> Formal offers track your agreed price. If another student completes a "Buy Now" purchase before your offer is accepted, this negotiation will be nullified.
+        </div>
+
         {% for msg in messages %}
         <div class="message-wrapper {% if msg.sender == request.user %}sent{% else %}received{% endif %}" data-message-id="{{ msg.id }}">
-            <div class="message-bubble">
+            <div class="message-bubble {% if msg.is_offer %}offer-bubble {{ msg.offer_status }}{% endif %}">
                 <span class="message-author">{{ msg.sender.username }}</span>
-                {{ msg.body }}
+                {% if msg.is_offer %}
+                    <span class="offer-amount">₱{{ msg.offer_amount|floatformat:2 }}</span>
+                    <div class="fw-bold mb-2">Offer for {{ conversation.listing.title }}</div>
+                    {% if msg.offer_status == 'pending' %}
+                        {% if conversation.listing.seller == request.user and msg.sender != request.user %}
+                        <div class="offer-actions">
+                            <a href="{% url 'marketplace:respond_to_offer' msg.pk %}?action=accept" class="btn btn-sm btn-success">Accept</a>
+                            <a href="{% url 'marketplace:respond_to_offer' msg.pk %}?action=decline" class="btn btn-sm btn-outline-danger">Decline</a>
+                        </div>
+                        {% else %}
+                        <div class="badge bg-secondary">Pending Response</div>
+                        {% endif %}
+                    {% elif msg.offer_status == 'accepted' %}
+                        <div class="badge bg-success mb-2">Accepted</div>
+                        {% if msg.sender == request.user and conversation.listing and not conversation.listing.is_sold %}
+                        <div class="mt-2 text-center">
+                            <a href="{% url 'marketplace:initiate_purchase' conversation.listing.pk %}?offer_id={{ msg.id }}" class="btn btn-sm btn-success w-100">Checkout now at ₱{{ msg.offer_amount|floatformat:2 }}</a>
+                            <small class="text-muted d-block mt-1">Complete the deal before someone else buys it!</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="badge bg-danger">Declined</div>
+                    {% endif %}
+                {% else %}
+                    {{ msg.body }}
+                {% endif %}
                 <span class="message-time">{{ msg.created_at|time:"H:i" }}</span>
             </div>
         </div>
@@ -200,10 +277,44 @@
         <form method="post" style="display: flex; width: 100%; gap: 0.5rem;" id="message-form">
             {% csrf_token %}
             <textarea name="body" placeholder="Type your message..." maxlength="500" style="flex: 1;" id="message-input"></textarea>
-            <button type="submit" class="btn btn-ubelt">Send</button>
+            <div class="d-flex flex-column gap-1">
+                <button type="submit" class="btn btn-ubelt">Send</button>
+                {% if conversation.listing and conversation.listing.seller != request.user %}
+                <button type="button" class="btn btn-sm btn-outline-ubelt" data-bs-toggle="modal" data-bs-target="#offerModal">Offer</button>
+                {% endif %}
+            </div>
         </form>
     </div>
 </div>
+
+<!-- Offer Modal -->
+{% if conversation.listing %}
+<div class="modal fade" id="offerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Make an Offer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'marketplace:make_offer' conversation.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Item: <strong>{{ conversation.listing.title }}</strong><br>Listed Price: ₱{{ conversation.listing.price|floatformat:2 }}</p>
+                    <div class="input-group">
+                        <span class="input-group-text">₱</span>
+                        <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" required min="1">
+                    </div>
+                    <small class="text-muted mt-2 d-block">This will be sent as a formal offer message to the seller.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-ubelt">Send Offer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}
 
@@ -224,6 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Scroll to bottom on load and when new messages are added
     scrollToBottom();
+
+    // Trigger offer modal if requested
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('initial_offer')) {
+        const offerModal = new bootstrap.Modal(document.getElementById('offerModal'));
+        offerModal.show();
+    }
     
     // Handle form submission and scroll
     messageForm && messageForm.addEventListener('submit', function() {

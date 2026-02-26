@@ -77,7 +77,7 @@
     .hero-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.15); /* Removing the heavy dark hue, keeping it subtle for contrast */
+        background: rgba(0, 0, 0, 0.35); /* Increased opacity for better text contrast */
         z-index: 1;
         pointer-events: none;
     }
@@ -93,7 +93,7 @@
         text-align: center;
         z-index: 5; /* Ensure it's above everything */
         color: #ffffff;
-        text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        text-shadow: 0 4px 20px rgba(0,0,0,0.7); /* Strengthened drop shadow */
         pointer-events: none; /* Allow clicks to pass through to buttons underneath */
     }
 
@@ -363,11 +363,16 @@
         flex: 1;
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: minmax(230px, 1fr);
-        gap: 1.25rem;
+        grid-auto-columns: minmax(280px, 1fr); /* Increased min-width for more focus on items */
+        gap: 2.5rem; /* Significant breathing room */
         overflow-x: auto;
-        padding: 0 3rem 0.5rem;
+        padding: 0 4rem 1.5rem;
         scroll-behavior: smooth;
+        scrollbar-width: none; /* Hide scrollbar for cleaner look */
+    }
+
+    .listing-carousel-track::-webkit-scrollbar {
+        display: none;
     }
 
     .listing-card {
@@ -547,13 +552,17 @@
             <h1>Every kinda find, for every kinda student</h1>
             <p>Shop with confidence inside the University Belt community. Sell textbooks, gadgets, dorm essentials, and more directly to fellow students.</p>
             <form class="hero-search" action="{% url 'marketplace:listing_list' %}" method="get">
-                <input type="search" name="q" placeholder="Search textbooks, laptops, phones..." value="{{ query }}">
+                <input type="search" name="q" placeholder="Search textbooks, gadgets, or course codes (e.g. IT-2104)..." value="{{ query }}">
                 <button type="submit">Search</button>
             </form>
             <div class="hero-trending">
                 <span>Trending:</span>
-                {% for tag in trending|slice:":8" %}
-                    <a href="{% url 'marketplace:listing_list' %}?q={{ tag|urlencode }}" class="hero-trend-tag">{{ tag }}</a>
+                {% for item in trending|slice:":8" %}
+                    {% if item.slug %}
+                        <a href="{% url 'marketplace:listing_list' %}?category={{ item.slug }}" class="hero-trend-tag">{{ item.name }}</a>
+                    {% else %}
+                        <a href="{% url 'marketplace:listing_list' %}?q={{ item.name|urlencode }}" class="hero-trend-tag">{{ item.name }}</a>
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>

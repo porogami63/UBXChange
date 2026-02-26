@@ -422,21 +422,26 @@
     <div class="home-hero-title">Every kinda find, for every kinda student</div>
     <div class="home-hero-sub">Buy & sell textbooks, gadgets, dorm essentials — from fellow students on campus.</div>
     <form method="get" class="home-search-bar">
-        <input type="hidden" name="category" value="{{ selected_category }}">
-        <input type="hidden" name="school" value="{{ selected_school }}">
-        <input type="hidden" name="min_price" value="{{ min_price }}">
-        <input type="hidden" name="max_price" value="{{ max_price }}">
-        <input type="hidden" name="sort" value="{{ sort }}">
         <div class="home-search-bar-wrapper">
-            <input type="text" name="q" value="{{ query }}" placeholder="Search textbooks, laptop, phone, furniture...">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search course codes (e.g. CS101), textbooks, gadgets...">
         </div>
+        {% if selected_school %}
+        <input type="hidden" name="school" value="{{ selected_school }}">
+        {% endif %}
+        {% if sort %}
+        <input type="hidden" name="sort" value="{{ sort }}">
+        {% endif %}
         <button type="submit" class="btn btn-search"><span>Search</span></button>
     </form>
     {% if trending %}
     <div class="trending-row">
         <span class="trending-label">Trending:</span>
-        {% for tag in trending %}
-        <a href="?q={{ tag|urlencode }}" class="trending-tag">{{ tag }}</a>
+        {% for item in trending|slice:":8" %}
+            {% if item.slug %}
+                <a href="?category={{ item.slug }}{% if selected_school %}&school={{ selected_school }}{% endif %}" class="trending-tag">{{ item.name }}</a>
+            {% else %}
+                <a href="?q={{ item.name|urlencode }}{% if selected_school %}&school={{ selected_school }}{% endif %}" class="trending-tag">{{ item.name }}</a>
+            {% endif %}
         {% endfor %}
     </div>
     {% endif %}
@@ -447,9 +452,9 @@
     <span>Featured categories</span>
 </div>
 <div class="categories-scroll">
-    <a href="{% url 'marketplace:listing_list' %}" class="category-chip {% if not selected_category %}active{% endif %}">All</a>
+    <a href="{% url 'marketplace:listing_list' %}{% if selected_school %}?school={{ selected_school }}{% endif %}" class="category-chip {% if not selected_category %}active{% endif %}">All</a>
     {% for c in categories %}
-    <a href="?category={{ c.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="category-chip {% if selected_category == c.slug %}active{% endif %}">{{ c.name }}</a>
+    <a href="?category={{ c.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if selected_school %}&school={{ selected_school }}{% endif %}" class="category-chip {% if selected_category == c.slug %}active{% endif %}">{{ c.name }}</a>
     {% empty %}
     <span class="text-muted small">No categories yet</span>
     {% endfor %}
@@ -523,9 +528,18 @@
     <div class="filter-chip {% if selected_school %}active{% endif %}">
         <i class="bi bi-mortarboard me-1"></i>
         <select name="school" class="form-select form-select-sm filter-select" onchange="this.form.submit()">
-            <option value="">All schools</option>
+            <option value="">All Schools</option>
             {% for s in schools %}
             <option value="{{ s.id }}" {% if selected_school == s.id|stringformat:"d" %}selected{% endif %}>{{ s.short_name|default:s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-chip {% if campus %}active{% endif %}">
+        <i class="bi bi-geo-alt me-1"></i>
+        <select name="campus" class="form-select form-select-sm filter-select" onchange="this.form.submit()">
+            <option value="">All Campuses</option>
+            {% for code, label in campus_choices %}
+            <option value="{{ code }}" {% if campus == code %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
@@ -583,6 +597,7 @@
     </div>
 
     <input type="hidden" name="q" value="{{ query }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
     <button type="submit" class="btn btn-search btn-sm ms-auto" style="height:35px; border-radius:999px"><i class="bi bi-funnel me-1"></i> Apply Filters</button>
 </form>
 
@@ -597,6 +612,11 @@
             <input type="hidden" name="school" value="{{ selected_school }}">
             <input type="hidden" name="min_price" value="{{ min_price }}">
             <input type="hidden" name="max_price" value="{{ max_price }}">
+            <input type="hidden" name="condition" value="{{ condition }}">
+            <input type="hidden" name="brand" value="{{ brand }}">
+            <input type="hidden" name="size" value="{{ size }}">
+            <input type="hidden" name="author" value="{{ author }}">
+            <input type="hidden" name="attribute" value="{{ attribute }}">
             <select name="sort" id="sort-select" onchange="this.form.submit()">
                 <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest First</option>
                 <option value="price_low" {% if sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
