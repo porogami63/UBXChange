@@ -1,7 +1,49 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Listing, Profile, ForumPost, ForumReply, Transaction
+from .models import Listing, Profile, ForumPost, ForumReply, Transaction, Category
+
+# Category-specific product attribute definitions
+PRODUCT_ATTRIBUTES = {
+    'textbooks': [
+        {'field': 'author', 'label': 'Author', 'type': 'text', 'required': True},
+        {'field': 'edition', 'label': 'Edition', 'type': 'text', 'required': False},
+        {'field': 'isbn', 'label': 'ISBN (if available)', 'type': 'text', 'required': False},
+        {'field': 'subject', 'label': 'Subject/Course', 'type': 'text', 'required': True},
+    ],
+    'electronics': [
+        {'field': 'brand', 'label': 'Brand', 'type': 'text', 'required': True},
+        {'field': 'model', 'label': 'Model', 'type': 'text', 'required': True},
+        {'field': 'storage', 'label': 'Storage (e.g., 256GB, 8GB)', 'type': 'text', 'required': False},
+        {'field': 'ram', 'label': 'RAM (if applicable)', 'type': 'text', 'required': False},
+        {'field': 'color', 'label': 'Color', 'type': 'text', 'required': False},
+        {'field': 'year_purchased', 'label': 'Year Purchased', 'type': 'number', 'required': False},
+    ],
+    'clothing': [
+        {'field': 'school_college', 'label': 'School / College (if uniform)', 'type': 'text', 'required': False},
+        {'field': 'uniform_type', 'label': 'Type (e.g., PE Uniform, Lab Coat, Formal)', 'type': 'text', 'required': False},
+        {'field': 'gender', 'label': 'For', 'type': 'select', 'options': ['--', 'Male', 'Female', 'Unisex'], 'required': True},
+        {'field': 'size', 'label': 'Size', 'type': 'text', 'required': True},
+        {'field': 'material', 'label': 'Material (e.g., Cotton, Polyester)', 'type': 'text', 'required': False},
+        {'field': 'brand', 'label': 'Brand (if applicable)', 'type': 'text', 'required': False},
+    ],
+    'supplies': [
+        {'field': 'type', 'label': 'Type of Supply', 'type': 'text', 'required': True},
+        {'field': 'quantity', 'label': 'Quantity', 'type': 'text', 'required': False},
+        {'field': 'brand', 'label': 'Brand', 'type': 'text', 'required': False},
+    ],
+    'notes': [
+        {'field': 'subject', 'label': 'Subject/Course', 'type': 'text', 'required': True},
+        {'field': 'semester', 'label': 'Semester (e.g., 1st Sem AY 2024-25)', 'type': 'text', 'required': False},
+        {'field': 'professor', 'label': 'Professor Name', 'type': 'text', 'required': False},
+    ],
+    'furniture': [
+        {'field': 'item_type', 'label': 'Type of Furniture', 'type': 'text', 'required': True},
+        {'field': 'material', 'label': 'Material', 'type': 'text', 'required': False},
+        {'field': 'dimensions', 'label': 'Dimensions (approx)', 'type': 'text', 'required': False},
+        {'field': 'delivery_available', 'label': 'Delivery Available', 'type': 'checkbox', 'required': False},
+    ],
+}
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -21,7 +63,92 @@ class ListingForm(forms.ModelForm):
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
+            'category': forms.Select(attrs={'class': 'category-select', 'id': 'id_category'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.product_attribute_fields = {}
+        
+        # Determine category from data or instance
+        category = None
+        if self.data:
+            category_id = self.data.get('category')
+            if category_id and (isinstance(category_id, int) or category_id.isdigit()):
+                try:
+                    category = Category.objects.get(id=category_id)
+                except (Category.DoesNotExist, ValueError):
+                    pass
+        elif self.instance and self.instance.category:
+            category = self.instance.category
+        
+        if category:
+            self._add_product_fields(category.slug)
+    
+    def _add_product_fields(self, category_slug):
+        """Dynamically add product attribute fields based on category."""
+        attributes = PRODUCT_ATTRIBUTES.get(category_slug, [])
+        existing_values = self.instance.product_details if self.instance.product_details else {}
+        
+        for attr in attributes:
+            field_name = f"product_{attr['field']}"
+            initial_value = existing_values.get(attr['field'], '')
+            
+            if attr['type'] == 'text':
+                self.fields[field_name] = forms.CharField(
+                    label=attr['label'],
+                    required=attr.get('required', False),
+                    initial=initial_value if self.data is None else self.data.get(field_name, ''),
+                    widget=forms.TextInput(attrs={'class': 'form-control product-field', 'data-field': attr['field']})
+                )
+            elif attr['type'] == 'number':
+                self.fields[field_name] = forms.IntegerField(
+                    label=attr['label'],
+                    required=attr.get('required', False),
+                    initial=initial_value if self.data is None else self.data.get(field_name, ''),
+                    widget=forms.NumberInput(attrs={'class': 'form-control product-field', 'data-field': attr['field']})
+                )
+            elif attr['type'] == 'select':
+                self.fields[field_name] = forms.ChoiceField(
+                    label=attr['label'],
+                    choices=[(x, x) for x in attr.get('options', [])],
+                    required=attr.get('required', False),
+                    initial=initial_value if self.data is None else self.data.get(field_name, ''),
+                    widget=forms.Select(attrs={'class': 'form-control product-field', 'data-field': attr['field']})
+                )
+            elif attr['type'] == 'checkbox':
+                self.fields[field_name] = forms.BooleanField(
+                    label=attr['label'],
+                    required=False,
+                    initial=existing_values.get(attr['field'], False) if self.data is None else self.data.get(field_name),
+                    widget=forms.CheckboxInput(attrs={'class': 'product-field', 'data-field': attr['field']})
+                )
+            
+            self.product_attribute_fields[field_name] = attr['field']
+    
+    def clean(self):
+        """Extract product details from form fields."""
+        cleaned_data = super().clean()
+        product_details = {}
+        
+        # Collect all product_* fields
+        for field_name, original_field in self.product_attribute_fields.items():
+            value = cleaned_data.get(field_name)
+            if value and value != '--':
+                product_details[original_field] = str(value)
+        
+        # Store in a way we can access in save()
+        self.product_details = product_details
+        return cleaned_data
+    
+    def save(self, commit=True):
+        """Save the listing with product details."""
+        instance = super().save(commit=False)
+        if hasattr(self, 'product_details'):
+            instance.product_details = self.product_details
+        if commit:
+            instance.save()
+        return instance
 
 
 class ProfileForm(forms.ModelForm):

@@ -13,6 +13,7 @@ from .models import (
     Notification,
     Review,
     Transaction,
+    ModerationLog,
 )
 
 
@@ -80,3 +81,12 @@ class ReviewAdmin(admin.ModelAdmin):
     search_fields = ['reviewer__username', 'seller__username', 'comment']
     date_hierarchy = 'created_at'
     readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(ModerationLog)
+class ModerationLogAdmin(admin.ModelAdmin):
+    list_display = ['actor', 'action', 'target_model', 'target_id', 'created_at']
+    list_filter = ['action', 'created_at']
+    search_fields = ['actor__username', 'reason']
+    date_hierarchy = 'created_at'
+    readonly_fields = ['actor', 'action', 'target_model', 'target_id', 'reason', 'created_at']

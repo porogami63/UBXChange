@@ -97,21 +97,22 @@
         margin-bottom: 3rem;
     }
     .stat-card {
-        background: white;
+        background: linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        border: 1px solid #e0e0e0;
+        border: 2px solid #E5E5E5;
         text-align: center;
         transition: all 0.3s ease;
     }
     .stat-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-color: #97C2EC;
     }
     .stat-number {
         font-size: 2rem;
         font-weight: 800;
-        color: var(--ubelt-navy);
+        color: #97C2EC;
         margin-bottom: 0.5rem;
     }
     .stat-label {
@@ -341,7 +342,12 @@
                 <div class="profile-avatar-placeholder"></div>
             {% endif %}
             <div class="profile-info">
-                <h1 class="profile-name">{{ profile.display_name }}</h1>
+                <h1 class="profile-name">
+                    {{ profile.display_name }}
+                    {% if profile.is_verified %}
+                    <i class="bi bi-check-circle-fill" style="color: #97C2EC; font-size: 0.8em; margin-left: 0.5rem;" title="Verified seller"></i>
+                    {% endif %}
+                </h1>
                 {% if profile.school %}
                     <p class="profile-school">{{ profile.school.name }}</p>
                 {% endif %}

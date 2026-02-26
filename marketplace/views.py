@@ -1,9 +1,12 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.db.models import Q
+import json
+from datetime import datetime, timedelta
+from django.db.models import Q, Count, Sum
+from django.utils import timezone
 from .models import (
     Listing,
     Category,
@@ -18,24 +21,42 @@ from .models import (
     Notification,
     Review,
     Transaction,
+    TransactionMessage,
+    ModerationLog,
 )
-from .forms import CustomUserCreationForm, ListingForm, ProfileForm, MessageForm, ForumPostForm, ForumReplyForm, PurchaseForm, TransactionConfirmForm
+from .forms import (
+    CustomUserCreationForm,
+    ListingForm,
+    ProfileForm,
+    MessageForm,
+    ForumPostForm,
+    ForumReplyForm,
+    PurchaseForm,
+    TransactionConfirmForm,
+)
 from .utils import get_similar_listings_price_stats
 
+HERO_IMAGE_URLS = [
+    'https://i.pinimg.com/originals/f0/a2/ea/f0a2eae1ff2863183dad317ab7b019df.jpg',
+    'https://cdn.coconuts.co/coconuts/wp-content/uploads/2016/11/ubelt-2.jpg',
+    'https://images.summitmedia-digital.com/spotph/images/2019/08/02/img-9953-1564737431.jpg',
+    'https://th.bing.com/th/id/R.730eb9d6ab1e84c2e14d4c3a826600cb?rik=VxNJkin1Psi1QQ&riu=http%3a%2f%2fphotos.wikimapia.org%2fp%2f00%2f08%2f40%2f55%2f72_full.jpg&ehk=A%2fDQfdbcJANOjmKmnTm2E0yXelYacYoh2zSW4hD0f38%3d&risl=&pid=ImgRaw&r=0',
+]
 
-def home(request):
-    """Homepage with featured and recent listings."""
+CATEGORY_OVERVIEW = [
+    ('textbooks', 'Textbooks', 'Save money on course materials'),
+    ('electronics', 'Electronics', 'Laptops, phones, and gadgets'),
+    ('clothing-uniforms', 'Clothing & Uniforms', 'PE uniforms, lab coats, and more'),
+    ('school-supplies', 'School Supplies', 'Pens, notebooks, and supplies'),
+    ('dorm-living', 'Dorm & Living', 'Furniture, lamps, and storage'),
+    ('study-materials', 'Study Materials', 'Lecture notes & study guides'),
+]
+
+
+def _get_listing_context(request):
     listings = Listing.objects.filter(is_sold=False).select_related(
-        'category', 'seller', 'school'
-    )[:12]
-    return render(request, 'marketplace/home.html', {'listings': listings})
-
-
-def listing_list(request):
-    """Browse all listings with search and filters."""
-    listings = Listing.objects.filter(is_sold=False).select_related(
-        'category', 'seller', 'school'
-    )
+        'category', 'seller', 'school', 'seller__profile'
+    ).annotate(fav_count=Count('favorited_by'))
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -48,7 +69,7 @@ def listing_list(request):
         listings = listings.filter(category__slug=category_slug)
 
     school_id = request.GET.get('school')
-    if school_id:
+    if school_id and school_id.isdigit():
         listings = listings.filter(school_id=school_id)
 
     min_price = request.GET.get('min_price')
@@ -59,23 +80,95 @@ def listing_list(request):
     if max_price and max_price.isdigit():
         listings = listings.filter(price__lte=max_price)
 
+    condition = request.GET.get('condition')
+    if condition:
+        listings = listings.filter(condition=condition)
+
+    brand = request.GET.get('brand')
+    if brand:
+        listings = listings.filter(product_details__brand__icontains=brand)
+
+    size = request.GET.get('size')
+    if size:
+        listings = listings.filter(product_details__size__iexact=size)
+
+    author = request.GET.get('author')
+    if author:
+        listings = listings.filter(product_details__author__icontains=author)
+
+    attribute = request.GET.get('attribute')
+    if attribute:
+        # Search across all values in the JSON field
+        # This is a bit trickier in SQLite but we can use icontains on the whole JSON field as a string
+        # or just check common fields.
+        listings = listings.filter(
+            Q(product_details__icontains=attribute)
+        )
+
     sort = request.GET.get('sort', 'newest')
     if sort == 'price_low':
         listings = listings.order_by('price')
     elif sort == 'price_high':
         listings = listings.order_by('-price')
+    elif sort == 'popular':
+        listings = listings.order_by('-view_count')
     else:
         listings = listings.order_by('-created_at')
 
-    return render(request, 'marketplace/listing_list.html', {
+    categories = Category.objects.all()
+    schools = School.objects.all()
+    filters_active = any([q, category_slug, school_id, min_price, max_price])
+    newly_listed = list(listings[:12]) if not filters_active else []
+    trending = list(categories.values_list('name', flat=True)[:12]) if categories.exists() else ['textbooks', 'laptop', 'phone', 'furniture', 'notes']
+
+    category_cards = []
+    listing_with_image = Listing.objects.filter(is_sold=False, image__isnull=False)
+    for slug, title, subtitle in CATEGORY_OVERVIEW:
+        card_listing = listing_with_image.filter(category__slug=slug).order_by('-created_at').first()
+        image_url = card_listing.image.url if card_listing and card_listing.image else None
+        category_cards.append({
+            'slug': slug,
+            'name': title,
+            'subtitle': subtitle,
+            'image': image_url,
+        })
+
+    forum_posts = ForumPost.objects.filter(is_hidden=False).select_related('author', 'listing')[:3]
+
+    return {
         'listings': listings,
+        'newly_listed': newly_listed,
+        'categories': categories,
+        'schools': schools,
+        'condition_choices': Listing.CONDITION_CHOICES,
         'query': q,
         'selected_category': category_slug,
         'selected_school': school_id,
         'min_price': min_price or '',
         'max_price': max_price or '',
+        'condition': condition or '',
+        'brand': brand or '',
+        'size': size or '',
+        'author': author or '',
+        'attribute': attribute or '',
         'sort': sort,
-    })
+        'trending': trending,
+        'hero_images': HERO_IMAGE_URLS,
+        'category_cards': category_cards,
+        'forum_posts': forum_posts,
+    }
+
+
+def home(request):
+    """Homepage with hero and safety banner."""
+    context = _get_listing_context(request)
+    return render(request, 'marketplace/home.html', context)
+
+
+def listing_list(request):
+    """Browse all listings with search and filters."""
+    context = _get_listing_context(request)
+    return render(request, 'marketplace/listing_list.html', context)
 
 
 def listing_detail(request, pk):
@@ -94,6 +187,11 @@ def listing_detail(request, pk):
     # Seller's other active listings
     other_listings = Listing.objects.filter(seller=listing.seller, is_sold=False).exclude(pk=pk).select_related('category', 'school')[:4]
 
+    # Related listings from same category (but different seller)
+    related_listings = Listing.objects.filter(
+        category=listing.category, is_sold=False
+    ).exclude(pk=pk).exclude(seller=listing.seller).select_related('category', 'school', 'seller')[:6]
+
     is_favorited = False
     if request.user.is_authenticated:
         is_favorited = Favorite.objects.filter(user=request.user, listing=listing).exists()
@@ -105,6 +203,7 @@ def listing_detail(request, pk):
         'listing': listing,
         'seller_profile': seller_profile,
         'other_listings': other_listings,
+        'related_listings': related_listings,
         'is_favorited': is_favorited,
         'price_stats': price_stats,
     })
@@ -127,6 +226,29 @@ def register(request):
         form = CustomUserCreationForm()
 
     return render(request, 'marketplace/register.html', {'form': form})
+
+
+@login_required
+def get_category_fields(request):
+    category_id = request.GET.get('category_id')
+    listing_id = request.GET.get('listing_id')
+    
+    category = None
+    if category_id and category_id.isdigit():
+        category = get_object_or_404(Category, id=category_id)
+        
+    listing = None
+    if listing_id and listing_id.isdigit():
+        listing = get_object_or_404(Listing, id=listing_id)
+        
+    form = ListingForm(instance=listing, initial={'category': category})
+    # If category changed via AJAX, we need to manually trigger the field addition 
+    # because the form's __init__ might have used the instance's category
+    if category:
+        form.product_attribute_fields = {}
+        form._add_product_fields(category.slug)
+    
+    return render(request, 'marketplace/_product_fields.html', {'form': form})
 
 
 @login_required
@@ -412,20 +534,29 @@ def transaction_detail(request, transaction_id):
     is_buyer = request.user == transaction.buyer
     is_seller = request.user == transaction.seller
     
-    # Form for seller to confirm
-    confirm_form = None
-    if is_seller and transaction.status == 'pending':
-        if request.method == 'POST':
+    # In-transaction messages
+    txn_messages = transaction.messages.select_related('sender').all()
+    message_form = MessageForm()
+
+    # Seller confirmation form (pending only)
+    confirm_form = TransactionConfirmForm(instance=transaction) if is_seller and transaction.status == 'pending' else None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        # Seller confirming the transaction
+        if action == 'confirm' and is_seller and transaction.status == 'pending':
             confirm_form = TransactionConfirmForm(request.POST, instance=transaction)
             if confirm_form.is_valid():
                 from django.utils import timezone
+                from django.urls import reverse
+
                 transaction = confirm_form.save(commit=False)
                 transaction.status = 'confirmed'
                 transaction.confirmed_at = timezone.now()
                 transaction.save()
                 
                 # Notify buyer
-                from django.urls import reverse
                 Notification.objects.create(
                     user=transaction.buyer,
                     message=f"{transaction.seller.username} confirmed your purchase!",
@@ -434,8 +565,29 @@ def transaction_detail(request, transaction_id):
                 
                 messages.success(request, 'Purchase confirmed! Buyer and seller can now exchange contact details.')
                 return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
-        else:
-            confirm_form = TransactionConfirmForm(instance=transaction)
+
+        # Any party sending a message within the transaction
+        elif action == 'message':
+            message_form = MessageForm(request.POST)
+            if message_form.is_valid():
+                from django.urls import reverse
+
+                msg = TransactionMessage.objects.create(
+                    transaction=transaction,
+                    sender=request.user,
+                    body=message_form.cleaned_data['body'],
+                )
+
+                # Notify the other party
+                other_user = transaction.seller if request.user == transaction.buyer else transaction.buyer
+                Notification.objects.create(
+                    user=other_user,
+                    message=f"New message about your transaction for {transaction.listing.title if transaction.listing else 'an item'}",
+                    url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk}),
+                )
+
+                messages.success(request, 'Message sent.')
+                return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
     
     buyer_profile = getattr(transaction.buyer, 'profile', None) or Profile.objects.filter(user=transaction.buyer).first()
     seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
@@ -447,6 +599,8 @@ def transaction_detail(request, transaction_id):
         'is_buyer': is_buyer,
         'is_seller': is_seller,
         'confirm_form': confirm_form,
+        'txn_messages': txn_messages,
+        'message_form': message_form,
     })
 
 
@@ -533,6 +687,43 @@ def complete_transaction(request, transaction_id):
 
 
 @login_required
+def cancel_transaction(request, transaction_id):
+    """Allow buyer or seller to cancel a pending or confirmed transaction."""
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    
+    # Only buyer or seller can cancel
+    if request.user not in [transaction.buyer, transaction.seller]:
+        messages.error(request, "You don't have permission to cancel this transaction.")
+        return redirect('marketplace:inbox')
+    
+    # Can only cancel pending or confirmed
+    if transaction.status not in ['pending', 'confirmed']:
+        messages.error(request, f"Cannot cancel a {transaction.status} transaction.")
+        return redirect('marketplace:transaction_detail', transaction_id=transaction.pk)
+    
+    if request.method == 'POST':
+        from django.utils import timezone
+        transaction.status = 'cancelled'
+        transaction.save()
+        
+        # Notify the other party
+        other_user = transaction.seller if request.user == transaction.buyer else transaction.buyer
+        from django.urls import reverse
+        Notification.objects.create(
+            user=other_user,
+            message=f"{request.user.username} cancelled the transaction for {transaction.listing.title if transaction.listing else 'an item'}",
+            url=reverse('marketplace:transaction_detail', kwargs={'transaction_id': transaction.pk})
+        )
+        
+        messages.success(request, 'Transaction cancelled.')
+        return redirect('marketplace:inbox')
+    
+    return render(request, 'marketplace/transaction_cancel_confirm.html', {
+        'transaction': transaction,
+    })
+
+
+@login_required
 def notifications_list(request):
     """Show user's notifications and mark them as read."""
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
@@ -584,10 +775,8 @@ def inbox(request):
             'last_message': last_msg,
         })
     
-    # Get pending and confirmed transactions
+    # Get pending, confirmed, completed, and cancelled transactions (all statuses)
     transactions = Transaction.objects.filter(
-        status__in=['pending', 'confirmed']
-    ).filter(
         Q(buyer=request.user) | Q(seller=request.user)
     ).select_related('listing', 'buyer', 'seller').order_by('-created_at')
     
@@ -609,7 +798,7 @@ def conversation_view(request, pk):
     other_prof = None
     if other:
         other_prof = getattr(other, 'profile', None) or Profile.objects.filter(user=other).first()
-    msgs = conv.messages.select_related('sender').all()
+    msgs = conv.messages.filter(is_hidden=False).select_related('sender').all()
 
     if request.method == 'POST':
         form = MessageForm(request.POST)
@@ -658,14 +847,20 @@ def message_send(request, pk):
 
 def forum_index(request):
     """Live forum - list posts, auto-refresh for 'live' feel."""
-    posts = ForumPost.objects.select_related('author', 'listing', 'listing__category', 'listing__school').prefetch_related('replies').order_by('-created_at')[:50]
+    posts = ForumPost.objects.filter(is_hidden=False).select_related('author', 'listing', 'listing__category', 'listing__school').prefetch_related('replies').order_by('-created_at')[:50]
     return render(request, 'marketplace/forum_index.html', {'posts': posts})
 
 
 def forum_post_detail(request, pk):
     """View a forum post and its replies."""
-    post = get_object_or_404(ForumPost.objects.select_related('author', 'listing', 'listing__category', 'listing__school'), pk=pk)
-    replies = post.replies.select_related('author').order_by('created_at')
+    qs = ForumPost.objects.select_related('author', 'listing', 'listing__category', 'listing__school')
+    if not (request.user.is_authenticated and request.user.is_superuser):
+        qs = qs.filter(is_hidden=False)
+    post = get_object_or_404(qs, pk=pk)
+    replies_qs = post.replies.select_related('author').order_by('created_at')
+    if not (request.user.is_authenticated and request.user.is_superuser):
+        replies_qs = replies_qs.filter(is_hidden=False)
+    replies = replies_qs
 
     form = None
     if request.user.is_authenticated:
@@ -700,3 +895,320 @@ def forum_create_post(request):
         form = ForumPostForm(user=request.user)
 
     return render(request, 'marketplace/forum_form.html', {'form': form, 'title': 'New Post'})
+
+
+# ----- Moderation (Superuser Only) -----
+
+def _superuser_required(view_func):
+    """Decorator: require superuser."""
+    decorated = login_required(view_func)
+    return user_passes_test(lambda u: u.is_superuser)(decorated)
+
+
+def mod_dashboard(request):
+    """Moderation dashboard: overview, quick stats, recent activity."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start - timedelta(days=30)
+
+    # Sales stats
+    completed = Transaction.objects.filter(status='completed')
+    total_revenue = completed.aggregate(s=Sum('price'))['s'] or 0
+    today_revenue = completed.filter(completed_at__gte=today_start).aggregate(s=Sum('price'))['s'] or 0
+    week_revenue = completed.filter(completed_at__gte=week_start).aggregate(s=Sum('price'))['s'] or 0
+    month_revenue = completed.filter(completed_at__gte=month_start).aggregate(s=Sum('price'))['s'] or 0
+
+    tx_counts = Transaction.objects.values('status').annotate(cnt=Count('id'))
+    status_counts = {s['status']: s['cnt'] for s in tx_counts}
+
+    # User stats
+    user_count = User.objects.count()
+    new_users_week = User.objects.filter(date_joined__gte=week_start).count()
+
+    # Content counts
+    listing_count = Listing.objects.filter(is_sold=False).count()
+    forum_post_count = ForumPost.objects.filter(is_hidden=False).count()
+    hidden_forum_count = ForumPost.objects.filter(is_hidden=True).count() + ForumReply.objects.filter(is_hidden=True).count()
+
+    # Recent moderation log
+    recent_logs = ModerationLog.objects.select_related('actor').order_by('-created_at')[:15]
+
+    return render(request, 'marketplace/mod/dashboard.html', {
+        'total_revenue': total_revenue,
+        'today_revenue': today_revenue,
+        'week_revenue': week_revenue,
+        'month_revenue': month_revenue,
+        'status_counts': status_counts,
+        'user_count': user_count,
+        'new_users_week': new_users_week,
+        'listing_count': listing_count,
+        'forum_post_count': forum_post_count,
+        'hidden_forum_count': hidden_forum_count,
+        'recent_logs': recent_logs,
+    })
+
+
+def mod_sales_analytics(request):
+    """Sales analytics with charts."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    # Last 30 days daily revenue
+    days = 30
+    daily_data = []
+    for i in range(days - 1, -1, -1):
+        d = (timezone.now() - timedelta(days=i)).date()
+        day_start = timezone.make_aware(datetime.combine(d, datetime.min.time()))
+        day_end = day_start + timedelta(days=1)
+        rev = Transaction.objects.filter(
+            status='completed',
+            completed_at__gte=day_start,
+            completed_at__lt=day_end
+        ).aggregate(s=Sum('price'))['s'] or 0
+        daily_data.append({'date': d.isoformat(), 'revenue': float(rev), 'count': Transaction.objects.filter(status='completed', completed_at__gte=day_start, completed_at__lt=day_end).count()})
+
+    # Revenue by category
+    by_category = list(Transaction.objects.filter(status='completed', listing__isnull=False).values(
+        'listing__category__name'
+    ).annotate(revenue=Sum('price'), count=Count('id')).order_by('-revenue')[:10])
+    for c in by_category:
+        c['revenue'] = float(c['revenue'])
+
+    return render(request, 'marketplace/mod/sales_analytics.html', {
+        'daily_data_json': json.dumps(daily_data),
+        'by_category_json': json.dumps(by_category),
+    })
+
+
+def mod_forum(request):
+    """Forum moderation: list posts and replies."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    show_hidden = request.GET.get('hidden') == '1'
+    posts = ForumPost.objects.select_related('author', 'listing').prefetch_related('replies').order_by('-created_at')
+    if show_hidden:
+        posts = posts.filter(is_hidden=True)
+    else:
+        posts = posts.filter(is_hidden=False)[:100]
+
+    return render(request, 'marketplace/mod/forum.html', {
+        'posts': posts,
+        'show_hidden': show_hidden,
+    })
+
+
+def mod_forum_action(request, content_type, pk):
+    """Hide or restore a forum post or reply."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    if content_type == 'post':
+        obj = get_object_or_404(ForumPost, pk=pk)
+    elif content_type == 'reply':
+        obj = get_object_or_404(ForumReply, pk=pk)
+    else:
+        messages.error(request, 'Invalid content type.')
+        return redirect('marketplace:mod_forum')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        reason = request.POST.get('reason', '').strip()
+
+        if action == 'hide':
+            obj.is_hidden = True
+            obj.moderation_notes = reason
+            obj.save()
+            log_action = 'hide_forum_post' if content_type == 'post' else 'hide_forum_reply'
+            ModerationLog.objects.create(actor=request.user, action=log_action, target_model=content_type, target_id=pk, reason=reason)
+            messages.success(request, f'{content_type.capitalize()} hidden.')
+        elif action == 'restore':
+            obj.is_hidden = False
+            obj.moderation_notes = ''
+            obj.save()
+            log_action = 'restore_forum_post' if content_type == 'post' else 'restore_forum_reply'
+            ModerationLog.objects.create(actor=request.user, action=log_action, target_model=content_type, target_id=pk, reason=reason)
+            messages.success(request, f'{content_type.capitalize()} restored.')
+
+        if content_type == 'post':
+            return redirect('marketplace:mod_forum')
+        else:
+            return redirect('marketplace:forum_post', pk=obj.post_id)
+
+    return redirect('marketplace:mod_forum')
+
+
+def mod_chat(request):
+    """Chat moderation: list conversations."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    convs = Conversation.objects.prefetch_related('participants', 'messages').order_by('-updated_at')[:80]
+    return render(request, 'marketplace/mod/chat.html', {'conversations': convs})
+
+
+def mod_conversation(request, pk):
+    """Admin view of a conversation (all messages, including hidden)."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    conv = get_object_or_404(Conversation.objects.prefetch_related('participants', 'messages__sender'), pk=pk)
+    msgs = conv.messages.select_related('sender').all().order_by('created_at')
+    participants = conv.participants.all()
+
+    return render(request, 'marketplace/mod/conversation.html', {
+        'conversation': conv,
+        'messages': msgs,
+        'participants': list(participants),
+    })
+
+
+def mod_message_action(request, pk):
+    """Hide or restore a private message."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    msg = get_object_or_404(Message, pk=pk)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        reason = request.POST.get('reason', '').strip()
+
+        if action == 'hide':
+            msg.is_hidden = True
+            msg.moderation_notes = reason
+            msg.save()
+            ModerationLog.objects.create(actor=request.user, action='hide_message', target_model='message', target_id=pk, reason=reason)
+            messages.success(request, 'Message hidden.')
+        elif action == 'restore':
+            msg.is_hidden = False
+            msg.moderation_notes = ''
+            msg.save()
+            ModerationLog.objects.create(actor=request.user, action='restore_message', target_model='message', target_id=pk, reason=reason)
+            messages.success(request, 'Message restored.')
+
+        return redirect('marketplace:mod_conversation', pk=msg.conversation_id)
+
+    return redirect('marketplace:mod_chat')
+
+
+def mod_transactions(request):
+    """Transaction oversight: list all, filter by status."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    qs = Transaction.objects.select_related('buyer', 'seller', 'listing').order_by('-created_at')
+    status_filter = request.GET.get('status')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if request.GET.get('flagged') == '1':
+        qs = qs.filter(flagged_for_review=True)
+    transactions = qs[:100]
+
+    return render(request, 'marketplace/mod/transactions.html', {
+        'transactions': transactions,
+        'status_filter': status_filter,
+        'flagged_filter': request.GET.get('flagged') == '1',
+    })
+
+
+def mod_transaction_detail(request, transaction_id):
+    """Admin view of transaction: add notes, flag, cancel with reason."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    transaction = get_object_or_404(
+        Transaction.objects.select_related('buyer', 'seller', 'listing', 'admin_cancelled_by'),
+        pk=transaction_id
+    )
+    txn_messages = transaction.messages.select_related('sender').all().order_by('created_at')
+    buyer_profile = getattr(transaction.buyer, 'profile', None) or Profile.objects.filter(user=transaction.buyer).first()
+    seller_profile = getattr(transaction.seller, 'profile', None) or Profile.objects.filter(user=transaction.seller).first()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add_note':
+            transaction.admin_notes = request.POST.get('admin_notes', '')
+            transaction.save()
+            ModerationLog.objects.create(actor=request.user, action='add_transaction_note', target_model='transaction', target_id=transaction_id, reason=transaction.admin_notes[:200])
+            messages.success(request, 'Note saved.')
+        elif action == 'flag':
+            transaction.flagged_for_review = True
+            transaction.save()
+            ModerationLog.objects.create(actor=request.user, action='flag_transaction', target_model='transaction', target_id=transaction_id, reason=request.POST.get('reason', ''))
+            messages.success(request, 'Transaction flagged for review.')
+        elif action == 'unflag':
+            transaction.flagged_for_review = False
+            transaction.save()
+            ModerationLog.objects.create(actor=request.user, action='unflag_transaction', target_model='transaction', target_id=transaction_id, reason='')
+            messages.success(request, 'Flag removed.')
+        elif action == 'admin_cancel' and transaction.status in ('pending', 'confirmed'):
+            reason = request.POST.get('admin_cancel_reason', '').strip()
+            if not reason:
+                messages.error(request, 'Please provide a reason for admin cancellation (audit trail).')
+            else:
+                transaction.status = 'cancelled'
+                transaction.admin_cancelled_at = timezone.now()
+                transaction.admin_cancel_reason = reason
+                transaction.admin_cancelled_by = request.user
+                transaction.save()
+                ModerationLog.objects.create(actor=request.user, action='admin_cancel_transaction', target_model='transaction', target_id=transaction_id, reason=reason)
+                messages.success(request, 'Transaction cancelled by admin. Reason logged for audit.')
+        return redirect('marketplace:mod_transaction_detail', transaction_id=transaction_id)
+
+    return render(request, 'marketplace/mod/transaction_detail.html', {
+        'transaction': transaction,
+        'txn_messages': txn_messages,
+        'buyer_profile': buyer_profile,
+        'seller_profile': seller_profile,
+    })
+
+
+def mod_users(request):
+    """User analytics and charts."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    # Registration over time (last 30 days)
+    days = 30
+    signup_data = []
+    for i in range(days - 1, -1, -1):
+        d = (timezone.now() - timedelta(days=i)).date()
+        day_start = timezone.make_aware(datetime.combine(d, datetime.min.time()))
+        day_end = day_start + timedelta(days=1)
+        cnt = User.objects.filter(date_joined__gte=day_start, date_joined__lt=day_end).count()
+        signup_data.append({'date': d.isoformat(), 'count': cnt})
+
+    total_users = User.objects.count()
+    users_with_listings = User.objects.filter(listings__isnull=False).distinct().count()
+    users_with_purchases = Transaction.objects.filter(status='completed').values('buyer').distinct().count()
+
+    return render(request, 'marketplace/mod/users.html', {
+        'signup_data_json': json.dumps(signup_data),
+        'total_users': total_users,
+        'users_with_listings': users_with_listings,
+        'users_with_purchases': users_with_purchases,
+    })
+
+
+def mod_log(request):
+    """Moderation audit log."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        messages.error(request, 'Access denied.')
+        return redirect('marketplace:home')
+
+    logs = ModerationLog.objects.select_related('actor').order_by('-created_at')[:100]
+    return render(request, 'marketplace/mod/mod_log.html', {'logs': logs})

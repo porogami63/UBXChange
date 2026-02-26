@@ -93,6 +93,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'marketplace:home'
 LOGOUT_REDIRECT_URL = 'marketplace:home'
 
+ACCOUNT_ADAPTER = 'marketplace.adapters.CustomAccountAdapter'
+
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 

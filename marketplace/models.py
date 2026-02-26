@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.db.models import JSONField
 
 
 class School(models.Model):
@@ -52,6 +53,7 @@ class Listing(models.Model):
     contact_info = models.CharField(max_length=200, blank=True, help_text='Phone or social media')
     is_sold = models.BooleanField(default=False)
     view_count = models.PositiveIntegerField(default=0)
+    product_details = JSONField(default=dict, blank=True, help_text='Category-specific product details (brand, size, material, etc.)')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -79,6 +81,7 @@ class Profile(models.Model):
     average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.0)
     review_count = models.PositiveIntegerField(default=0)
     total_sold = models.PositiveIntegerField(default=0)
+    is_verified = models.BooleanField(default=False, help_text='Verified email or school verification')
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -136,6 +139,8 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    is_hidden = models.BooleanField(default=False, help_text='Moderator-hidden content')
+    moderation_notes = models.TextField(blank=True, help_text='Internal moderator notes')
 
     class Meta:
         ordering = ['created_at']
@@ -149,6 +154,8 @@ class ForumPost(models.Model):
     listing = models.ForeignKey(Listing, on_delete=models.SET_NULL, null=True, blank=True, related_name='forum_promotions')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_hidden = models.BooleanField(default=False, help_text='Moderator-hidden content')
+    moderation_notes = models.TextField(blank=True, help_text='Internal moderator notes')
 
     class Meta:
         ordering = ['-created_at']
@@ -160,6 +167,8 @@ class ForumReply(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_replies')
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    is_hidden = models.BooleanField(default=False, help_text='Moderator-hidden content')
+    moderation_notes = models.TextField(blank=True, help_text='Internal moderator notes')
 
     class Meta:
         ordering = ['created_at']
@@ -204,12 +213,31 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    admin_notes = models.TextField(blank=True, help_text='Internal admin notes for dispute/fraud follow-up')
+    flagged_for_review = models.BooleanField(default=False, help_text='Flagged by admin for follow-up')
+    admin_cancelled_at = models.DateTimeField(null=True, blank=True)
+    admin_cancel_reason = models.TextField(blank=True, help_text='Documented reason for admin cancellation (audit trail)')
+    admin_cancelled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_cancelled_transactions')
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.buyer.username} → {self.seller.username} ({self.listing.title if self.listing else 'Deleted'})"
+
+
+class TransactionMessage(models.Model):
+    """Message exchanged between buyer and seller within a transaction."""
+    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transaction_messages')
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.sender.username}: {self.body[:30]}..."
 
 
 class Review(models.Model):
@@ -243,3 +271,28 @@ class Review(models.Model):
         # Update seller's average rating
         if hasattr(self.seller, 'profile'):
             self.seller.profile.update_rating()
+
+
+class ModerationLog(models.Model):
+    """Audit log for admin moderation actions."""
+    ACTION_CHOICES = [
+        ('hide_forum_post', 'Hide Forum Post'),
+        ('restore_forum_post', 'Restore Forum Post'),
+        ('hide_forum_reply', 'Hide Forum Reply'),
+        ('restore_forum_reply', 'Restore Forum Reply'),
+        ('hide_message', 'Hide Message'),
+        ('restore_message', 'Restore Message'),
+        ('flag_transaction', 'Flag Transaction'),
+        ('unflag_transaction', 'Unflag Transaction'),
+        ('admin_cancel_transaction', 'Admin Cancel Transaction'),
+        ('add_transaction_note', 'Add Transaction Note'),
+    ]
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='moderation_actions')
+    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    target_model = models.CharField(max_length=60, blank=True)
+    target_id = models.PositiveIntegerField(null=True, blank=True)
+    reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

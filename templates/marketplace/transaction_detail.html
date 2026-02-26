@@ -1,268 +1,530 @@
 {% extends 'base.html' %}
 {% block title %}Transaction Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .txn-layout {
+        background: linear-gradient(135deg, #1F1F1F, #2D2D2D);
+        border-radius: 20px;
+        padding: 1.5rem;
+        color: #e5e7eb;
+    }
+    .txn-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .txn-status-pill {
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .txn-status-pending { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+    .txn-status-confirmed { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .txn-status-completed { background: rgba(22, 163, 74, 0.2); color: #22c55e; }
+    .txn-status-cancelled { background: rgba(148, 163, 184, 0.15); color: #9ca3af; }
+
+    .txn-chat-shell {
+        background: rgba(31, 31, 31, 0.95);
+        border-radius: 16px;
+        padding: 1rem;
+        height: 520px;
+        display: flex;
+        flex-direction: column;
+    }
+    .txn-chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+    .txn-user-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .txn-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 0 0, #38bdf8, #0f172a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        overflow: hidden;
+    }
+    .txn-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+    }
+    .txn-chat-body {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+        margin-bottom: 0.75rem;
+    }
+    .txn-message-row {
+        display: flex;
+        margin-bottom: 0.5rem;
+    }
+    .txn-message-row.self {
+        justify-content: flex-end;
+    }
+    .txn-bubble {
+        max-width: 80%;
+        padding: 0.55rem 0.9rem;
+        border-radius: 14px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
+    .txn-bubble.self {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #ecfdf5;
+        border-bottom-right-radius: 4px;
+    }
+    .txn-bubble.other {
+        background: rgba(45, 45, 45, 0.95);
+        border: 1px solid rgba(60, 60, 60, 0.8);
+        border-bottom-left-radius: 4px;
+    }
+    .txn-bubble-meta {
+        font-size: 0.7rem;
+        margin-top: 0.15rem;
+        opacity: 0.7;
+    }
+    .txn-chat-input textarea {
+        background: rgba(31, 31, 31, 0.98);
+        border-color: rgba(60, 60, 60, 0.9);
+        color: #e5e7eb;
+        font-size: 0.9rem;
+    }
+    .txn-chat-input textarea:focus {
+        box-shadow: 0 0 0 1px #22c55e;
+    }
+    .txn-side-card {
+        background: #2D2D2D;
+        border-radius: 16px;
+        padding: 1rem;
+        border: 1px solid rgba(60,60,60,0.8);
+        color: #e5e7eb;
+    }
+    .txn-item-thumb {
+        border-radius: 12px;
+        overflow: hidden;
+        background: radial-gradient(circle at 0 0, #38bdf8, #1e293b);
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .txn-item-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .txn-price {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #4ade80;
+    }
+    .txn-meta-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+    }
+    .txn-section-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #9ca3af;
+    }
+    .txn-steps small {
+        color: #9ca3af;
+    }
+    .txn-steps .step-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        margin-right: 0.4rem;
+    }
+    .txn-steps .step-active .step-dot {
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+    }
+    .txn-steps .step-done .step-dot {
+        background: #22c55e;
+    }
+    .txn-steps .step-future .step-dot {
+        background: #4b5563;
+    }
+    .txn-steps .step {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.3rem;
+        font-size: 0.8rem;
+    }
+    .txn-tag-pill {
+        border-radius: 999px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.6);
+        color: #e5e7eb;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="row">
-        <div class="col-lg-8">
-            <!-- Status Badge -->
-            <div class="mb-3">
+<div class="txn-layout mt-2">
+    <div class="txn-header">
+        <div>
+            <div class="mb-1">
                 {% if transaction.status == 'pending' %}
-                <span class="badge bg-warning text-dark">⏳ Pending Seller Confirmation</span>
+                    <span class="txn-status-pill txn-status-pending">
+                        <i class="bi bi-hourglass-split"></i> Waiting for seller
+                    </span>
                 {% elif transaction.status == 'confirmed' %}
-                <span class="badge bg-success">✓ Confirmed - Ready to Exchange</span>
+                    <span class="txn-status-pill txn-status-confirmed">
+                        <i class="bi bi-check-circle"></i> Ready to exchange
+                    </span>
                 {% elif transaction.status == 'completed' %}
-                <span class="badge bg-success">✓ Completed</span>
+                    <span class="txn-status-pill txn-status-completed">
+                        <i class="bi bi-check2-circle"></i> Completed
+                    </span>
                 {% elif transaction.status == 'cancelled' %}
-                <span class="badge bg-danger">✗ Cancelled</span>
+                    <span class="txn-status-pill txn-status-cancelled">
+                        <i class="bi bi-x-circle"></i> Cancelled
+                    </span>
                 {% endif %}
-                <h1 class="font-display fw-bold h3 mt-3" style="color: var(--ubelt-navy);">Receipt & Transaction Details</h1>
             </div>
+            <h4 class="mb-0 font-display fw-bold">Transaction with @{% if is_buyer %}{{ transaction.seller.username }}{% else %}{{ transaction.buyer.username }}{% endif %}</h4>
+            <small class="text-muted">Created {{ transaction.created_at|date:"M d, Y h:i A" }}</small>
+        </div>
+        <div class="d-flex flex-column flex-md-row gap-2">
+            {% if transaction.status == 'pending' or transaction.status == 'confirmed' %}
+                {% if is_buyer or is_seller %}
+                <a href="{% url 'marketplace:cancel_transaction' transaction.pk %}" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-x-octagon me-1"></i> Cancel
+                </a>
+                {% endif %}
+            {% endif %}
+            <a href="{% url 'marketplace:inbox' %}" class="btn btn-sm btn-outline-light">
+                <i class="bi bi-arrow-left me-1"></i> Back to Inbox
+            </a>
+        </div>
+    </div>
 
-            <!-- Transaction Timeline -->
-            <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3">📋 Item Details</h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        {% if transaction.listing and transaction.listing.image %}
-                        <img src="{{ transaction.listing.image.url }}" alt="Item" class="img-fluid rounded" style="max-height: 160px; object-fit: cover;">
-                        {% else %}
-                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 160px;">
-                            <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-9">
-                        <h6 class="fw-bold">{% if transaction.listing %}{{ transaction.listing.title }}{% else %}Item (Deleted){% endif %}</h6>
-                        <p class="text-muted small mb-2">{% if transaction.listing %}{{ transaction.listing.get_condition_display }}{% else %}Condition Unknown{% endif %}</p>
-                        <div class="d-flex justify-content-between mt-3 pt-3" style="border-top: 1px solid #eee;">
-                            <span>Price</span>
-                            <strong style="font-size: 1.3rem;">₱{{ transaction.price|floatformat:2 }}</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Exchange Method -->
-            <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3">🤝 Exchange Method</h5>
-                <div class="alert alert-blue-light p-3 mb-0">
-                    <strong>
-                        {% if transaction.exchange_method == 'in_person' %}
-                        Meet in Person
-                        {% elif transaction.exchange_method == 'gcash' %}
-                        GCash / E-wallet Transfer
-                        {% elif transaction.exchange_method == 'bank_transfer' %}
-                        Bank Transfer
-                        {% elif transaction.exchange_method == 'other' %}
-                        Other Arrangement
-                        {% endif %}
-                    </strong><br>
-                    <small class="text-muted">Both buyer and seller will exchange contact details to arrange the {{ transaction.get_exchange_method_display|lower }}</small>
-                </div>
-            </div>
-
-            <!-- Buyer & Seller Info -->
-            <div class="row mb-4">
-                <!-- Buyer -->
-                <div class="col-md-6">
-                    <div class="card p-4 h-100">
-                        <h6 class="fw-bold mb-3">🛒 Buyer</h6>
-                        <div class="d-flex mb-3">
-                            {% if buyer_profile.avatar %}
-                            <img src="{{ buyer_profile.avatar.url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
-                            {% elif buyer_profile.google_avatar_url %}
-                            <img src="{{ buyer_profile.google_avatar_url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+    <div class="row g-4 mt-1">
+        <!-- Chat + notes -->
+        <div class="col-lg-7">
+            <div class="txn-chat-shell">
+                <div class="txn-chat-header">
+                    <div class="txn-user-chip">
+                        <div class="txn-avatar">
+                            {% if is_buyer %}
+                                {% if seller_profile.avatar %}
+                                    <img src="{{ seller_profile.avatar.url }}" alt="">
+                                {% elif seller_profile.google_avatar_url %}
+                                    <img src="{{ seller_profile.google_avatar_url }}" alt="">
+                                {% else %}
+                                    {{ seller_profile.display_name|first|upper }}
+                                {% endif %}
                             {% else %}
-                            <div class="rounded-circle bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
-                                <i class="bi bi-person fs-5 text-secondary"></i>
-                            </div>
+                                {% if buyer_profile.avatar %}
+                                    <img src="{{ buyer_profile.avatar.url }}" alt="">
+                                {% elif buyer_profile.google_avatar_url %}
+                                    <img src="{{ buyer_profile.google_avatar_url }}" alt="">
+                                {% else %}
+                                    {{ buyer_profile.display_name|first|upper }}
+                                {% endif %}
                             {% endif %}
-                            <div>
-                                <strong>{{ buyer_profile.display_name }}</strong>
-                                <br><span class="small text-muted">@{{ transaction.buyer.username }}</span>
+                        </div>
+                        <div>
+                            <div class="small text-uppercase text-muted">Chat about this deal</div>
+                            <div class="fw-semibold">
+                                {% if is_buyer %}
+                                    {{ seller_profile.display_name }}
+                                {% else %}
+                                    {{ buyer_profile.display_name }}
+                                {% endif %}
                             </div>
                         </div>
-                        {% if is_seller and transaction.status == 'pending' %}
-                        <p class="small text-muted mb-2"><i class="bi bi-chat-left-dots me-1"></i> Buyer's Message:</p>
-                        <div class="alert alert-light small" style="border-left: 3px solid #007bff;">
-                            <p class="mb-0">{{ transaction.notes|default:"No message" }}</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="txn-section-label">Exchange method</div>
+                        <div class="small">
+                            {{ transaction.get_exchange_method_display }}
                         </div>
-                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Seller -->
-                <div class="col-md-6">
-                    <div class="card p-4 h-100">
-                        <h6 class="fw-bold mb-3">🏪 Seller</h6>
-                        <div class="d-flex mb-3">
-                            {% if seller_profile.avatar %}
-                            <img src="{{ seller_profile.avatar.url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
-                            {% elif seller_profile.google_avatar_url %}
-                            <img src="{{ seller_profile.google_avatar_url }}" alt="" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                <div class="txn-chat-body">
+                    {% if transaction.notes and is_seller and transaction.status == 'pending' %}
+                        <div class="txn-message-row">
+                            <div class="txn-bubble other">
+                                <div class="txn-bubble-meta mb-1 text-warning">
+                                    Buyer note when requesting:
+                                </div>
+                                <div>{{ transaction.notes }}</div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if transaction.seller_notes and transaction.status == 'confirmed' or transaction.seller_notes and transaction.status == 'completed' %}
+                        <div class="txn-message-row">
+                            <div class="txn-bubble other">
+                                <div class="txn-bubble-meta mb-1 text-success">
+                                    Seller confirmation:
+                                </div>
+                                <div>{{ transaction.seller_notes }}</div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if txn_messages %}
+                        {% for msg in txn_messages %}
+                            {% with is_self=msg.sender_id|yesno:"" %}
+                            {% if msg.sender == request.user %}
+                                <div class="txn-message-row self">
+                                    <div class="txn-bubble self">
+                                        <div>{{ msg.body|linebreaksbr }}</div>
+                                        <div class="txn-bubble-meta text-end">{{ msg.created_at|timesince }} ago</div>
+                                    </div>
+                                </div>
                             {% else %}
-                            <div class="rounded-circle bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
-                                <i class="bi bi-person fs-5 text-secondary"></i>
-                            </div>
+                                <div class="txn-message-row">
+                                    <div class="txn-bubble other">
+                                        <div class="txn-bubble-meta">{{ msg.sender.username }}</div>
+                                        <div>{{ msg.body|linebreaksbr }}</div>
+                                        <div class="txn-bubble-meta">{{ msg.created_at|timesince }} ago</div>
+                                    </div>
+                                </div>
                             {% endif %}
-                            <div>
-                                <strong>{{ seller_profile.display_name }}</strong>
-                                <br><span class="small text-muted">@{{ transaction.seller.username }}</span>
-                            </div>
+                            {% endwith %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted small mt-4">
+                            <i class="bi bi-chat-dots mb-2" style="font-size: 1.4rem;"></i>
+                            <div>No messages yet. Use this space to coordinate meetup time, place, or payment details.</div>
                         </div>
-                        {% if seller_profile.average_rating > 0 %}
-                        <div class="small mb-2">
-                            <span style="color: var(--ubelt-gold);">
-                                {% for star in "12345" %}
-                                    {% if star|add:"0" <= seller_profile.average_rating %}⭐{% else %}☆{% endif %}
-                                {% endfor %}
-                            </span>
-                            <span class="text-muted">{{ seller_profile.average_rating|floatformat:1 }} ({{ seller_profile.review_count }} reviews)</span>
-                        </div>
-                        {% endif %}
-                        {% if transaction.status == 'pending' %}
-                        <p class="small text-muted">Waiting for seller confirmation...</p>
-                        {% elif transaction.status == 'confirmed' and transaction.seller_notes %}
-                        <p class="small text-muted mb-2"><i class="bi bi-check-circle me-1" style="color: #28a745;"></i> Seller's Confirmation:</p>
-                        <div class="alert alert-light small" style="border-left: 3px solid #28a745;">
-                            <p class="mb-0">{{ transaction.seller_notes }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
+                    {% endif %}
                 </div>
+
+                {% if transaction.status != 'cancelled' %}
+                <form method="post" class="txn-chat-input mt-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="message">
+                    <div class="mb-2">
+                        {{ message_form.body }}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-muted">
+                            Be respectful. Keep payments and meetups safe and trackable.
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="bi bi-send-fill me-1"></i> Send
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center text-muted small mt-2">
+                    This transaction was cancelled. Chat is now read-only.
+                </div>
+                {% endif %}
             </div>
 
-            <!-- Seller Confirmation Form (if pending) -->
-            {% if is_seller and transaction.status == 'pending' %}
-            <div class="card p-4 mb-4" style="background: #f0f8ff; border: 2px solid #007bff;">
-                <h5 class="fw-bold mb-3">✅ Confirm This Purchase</h5>
+            <!-- Seller confirm + buyer complete blocks -->
+            {% if is_seller and transaction.status == 'pending' and confirm_form %}
+            <div class="mt-3 p-3 rounded-3" style="background: rgba(15,118,110,0.1); border: 1px solid rgba(34,197,94,0.3);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <div class="txn-section-label">Seller action</div>
+                        <div class="fw-semibold">Confirm this purchase</div>
+                    </div>
+                </div>
                 <form method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
+                    <input type="hidden" name="action" value="confirm">
+                    <div class="mb-2">
                         {{ confirm_form.seller_notes }}
                         {% if confirm_form.seller_notes.errors %}
-                        <div class="alert alert-danger small mt-2">{{ confirm_form.seller_notes.errors.0 }}</div>
+                        <div class="alert alert-danger small mt-2 mb-1">{{ confirm_form.seller_notes.errors.0 }}</div>
                         {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-circle me-2"></i> Confirm Purchase
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="bi bi-check-circle me-1"></i> Confirm & share meetup details
                     </button>
-                    <small class="d-block mt-3 text-muted">
-                        By confirming, you're agreeing to proceed with the exchange via {{ transaction.get_exchange_method_display|lower }}.
-                    </small>
                 </form>
             </div>
             {% endif %}
 
-            <!-- Action Buttons -->
             {% if is_buyer and transaction.status == 'confirmed' %}
-            <div class="card p-4 mb-4" style="background: #f0fff4; border: 2px solid #28a745;">
-                <h5 class="fw-bold mb-3 text-success">📦 Ready to Exchange!</h5>
-                <p class="mb-3">Seller has confirmed the purchase. Exchange your goods and payment, then mark as complete.</p>
-                <div class="d-flex gap-2 flex-wrap">
-                    <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success">
-                        <i class="bi bi-check-circle me-2"></i> Mark as Complete
+            <div class="mt-3 p-3 rounded-3" style="background: rgba(22,163,74,0.12); border: 1px solid rgba(34,197,94,0.4);">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <div class="txn-section-label text-success">Buyer action</div>
+                        <div class="fw-semibold text-success">Already met and exchanged?</div>
+                        <small class="text-muted d-block">Once everything is done, mark this as completed so you can leave a review.</small>
+                    </div>
+                    <a href="{% url 'marketplace:complete_transaction' transaction.pk %}" class="btn btn-success btn-sm">
+                        <i class="bi bi-check2-circle me-1"></i> Mark as complete
                     </a>
-                    <a href="{% url 'marketplace:inbox' %}" class="btn btn-outline-secondary">Back to Inbox</a>
                 </div>
-            </div>
-            {% else %}
-            <div class="d-flex gap-2">
-                <a href="{% url 'marketplace:inbox' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i> Back to Inbox
-                </a>
             </div>
             {% endif %}
-
-            <!-- Transaction Dates -->
-            <div class="card p-3 mt-4 bg-light">
-                <small class="text-muted d-block">
-                    <i class="bi bi-calendar-event me-1"></i> Created: <strong>{{ transaction.created_at|date:"M d, Y h:i A" }}</strong>
-                </small>
-                {% if transaction.confirmed_at %}
-                <small class="text-muted d-block">
-                    <i class="bi bi-calendar-check me-1"></i> Confirmed: <strong>{{ transaction.confirmed_at|date:"M d, Y h:i A" }}</strong>
-                </small>
-                {% endif %}
-                {% if transaction.completed_at %}
-                <small class="text-muted d-block">
-                    <i class="bi bi-calendar-check me-1"></i> Completed: <strong>{{ transaction.completed_at|date:"M d, Y h:i A" }}</strong>
-                </small>
-                {% endif %}
-            </div>
         </div>
 
-        <!-- Sidebar Info -->
-        <div class="col-lg-4">
-            <!-- How It Works -->
-            <div class="card p-3 mb-4">
-                <h6 class="fw-bold mb-2">📌 Transaction Steps</h6>
-                <div class="timeline">
-                    <div class="timeline-item {% if transaction.status != 'pending' %}completed{% endif %}">
-                        <i class="bi bi-check-circle"></i>
-                        <p class="small"><strong>1. Purchase Request</strong><br><span class="text-muted">Buyer initiates</span></p>
+        <!-- Right side: item + people + steps -->
+        <div class="col-lg-5">
+            <div class="txn-side-card mb-3">
+                <div class="row g-3">
+                    <div class="col-sm-5">
+                        <div class="txn-item-thumb">
+                            {% if transaction.listing and transaction.listing.image %}
+                                <img src="{{ transaction.listing.image.url }}" alt="Item">
+                            {% else %}
+                                <i class="bi bi-image text-white-50" style="font-size: 2rem;"></i>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="timeline-item {% if transaction.status in 'confirmed,completed' %}completed{% endif %}">
-                        <i class="bi bi-check-circle"></i>
-                        <p class="small"><strong>2. Seller Confirms</strong><br><span class="text-muted">Seller approves & provides details</span></p>
-                    </div>
-                    <div class="timeline-item {% if transaction.status == 'completed' %}completed{% endif %}">
-                        <i class="bi bi-check-circle"></i>
-                        <p class="small"><strong>3. Exchange</strong><br><span class="text-muted">Meet & exchange</span></p>
-                    </div>
-                    <div class="timeline-item {% if transaction.status == 'completed' %}completed{% endif %}">
-                        <i class="bi bi-check-circle"></i>
-                        <p class="small"><strong>4. Leave Review</strong><br><span class="text-muted">Rate the experience</span></p>
+                    <div class="col-sm-7">
+                        <div class="txn-meta-label mb-1">Item</div>
+                        <div class="fw-semibold mb-1">
+                            {% if transaction.listing %}
+                                {{ transaction.listing.title|truncatechars:60 }}
+                            {% else %}
+                                Listing removed
+                            {% endif %}
+                        </div>
+                        <div class="txn-price mb-2">₱{{ transaction.price|floatformat:2 }}</div>
+                        {% if transaction.listing %}
+                        <a href="{{ transaction.listing.get_absolute_url }}" class="btn btn-outline-light btn-sm">
+                            View listing
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- Safety Tips -->
-            <div class="alert alert-warning small">
-                <i class="bi bi-lightbulb me-2"></i>
-                <strong>Safety Tips:</strong>
-                <ul class="mb-0 mt-2">
-                    <li>Meet in a safe, public location</li>
-                    <li>Inspect the item before paying</li>
-                    <li>Don't send payment online before meeting</li>
-                    <li>Bring a friend if possible</li>
+            <div class="txn-side-card mb-3">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="txn-meta-label mb-1">Buyer</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="txn-avatar" style="width:32px;height:32px;">
+                                {% if buyer_profile.avatar %}
+                                    <img src="{{ buyer_profile.avatar.url }}" alt="">
+                                {% elif buyer_profile.google_avatar_url %}
+                                    <img src="{{ buyer_profile.google_avatar_url }}" alt="">
+                                {% else %}
+                                    {{ buyer_profile.display_name|first|upper }}
+                                {% endif %}
+                            </div>
+                            <div class="small">
+                                <div class="fw-semibold">{{ buyer_profile.display_name }}</div>
+                                <div class="text-muted">@{{ transaction.buyer.username }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="txn-meta-label mb-1">Seller</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="txn-avatar" style="width:32px;height:32px;">
+                                {% if seller_profile.avatar %}
+                                    <img src="{{ seller_profile.avatar.url }}" alt="">
+                                {% elif seller_profile.google_avatar_url %}
+                                    <img src="{{ seller_profile.google_avatar_url }}" alt="">
+                                {% else %}
+                                    {{ seller_profile.display_name|first|upper }}
+                                {% endif %}
+                            </div>
+                            <div class="small">
+                                <div class="fw-semibold">{{ seller_profile.display_name }}</div>
+                                <div class="text-muted">@{{ transaction.seller.username }}</div>
+                            </div>
+                        </div>
+                        {% if seller_profile.average_rating > 0 %}
+                        <div class="mt-2 small">
+                            <span class="text-warning">
+                                ★ {{ seller_profile.average_rating|floatformat:1 }}
+                            </span>
+                            <span class="text-muted">({{ seller_profile.review_count }} reviews)</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="txn-side-card mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="txn-section-label">Timeline</div>
+                    <span class="txn-tag-pill">
+                        {% if transaction.status == 'pending' %}Step 1 of 4
+                        {% elif transaction.status == 'confirmed' %}Step 2 of 4
+                        {% elif transaction.status == 'completed' %}Step 4 of 4
+                        {% else %}Ended{% endif %}
+                    </span>
+                </div>
+                <div class="txn-steps">
+                    <div class="step {% if transaction.status != 'pending' and transaction.status != 'cancelled' %}step-done{% else %}step-active{% endif %}">
+                        <div class="step-dot"></div>
+                        <div>
+                            <div>Buyer requested to buy</div>
+                            <small>Created {{ transaction.created_at|date:"M d, Y h:i A" }}</small>
+                        </div>
+                    </div>
+                    <div class="step {% if transaction.status == 'confirmed' %}step-active{% elif transaction.status == 'completed' %}step-done{% elif transaction.status == 'cancelled' %}step-future{% else %}step-future{% endif %}">
+                        <div class="step-dot"></div>
+                        <div>
+                            <div>Seller confirms & shares details</div>
+                            {% if transaction.confirmed_at %}
+                            <small>Confirmed {{ transaction.confirmed_at|date:"M d, Y h:i A" }}</small>
+                            {% else %}
+                            <small>Waiting for seller</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="step {% if transaction.status == 'completed' %}step-done{% elif transaction.status == 'confirmed' %}step-active{% else %}step-future{% endif %}">
+                        <div class="step-dot"></div>
+                        <div>
+                            <div>Meet & exchange item/payment</div>
+                            {% if transaction.completed_at %}
+                            <small>Marked complete {{ transaction.completed_at|date:"M d, Y h:i A" }}</small>
+                            {% else %}
+                            <small>Coordinate via chat</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="step {% if transaction.status == 'completed' %}step-active{% else %}step-future{% endif %}">
+                        <div class="step-dot"></div>
+                        <div>
+                            <div>Leave a review</div>
+                            <small>Help other students stay safe</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="txn-side-card small">
+                <div class="fw-semibold mb-1"><i class="bi bi-shield-check me-1"></i> Safety reminders</div>
+                <ul class="mb-0 ps-3">
+                    <li>Meet in bright, public places (campus, malls).</li>
+                    <li>Check the item carefully before paying.</li>
+                    <li>Avoid sending full payment ahead of time.</li>
+                    <li>Bring a friend if you feel unsure.</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.alert-blue-light {
-    background: #e7f3ff;
-    border-left: 4px solid #007bff;
-}
-.timeline {
-    position: relative;
-    padding-left: 0;
-}
-.timeline-item {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    opacity: 0.5;
-    transition: opacity 0.3s;
-}
-.timeline-item.completed {
-    opacity: 1;
-}
-.timeline-item i {
-    color: #ccc;
-    font-size: 20px;
-    flex-shrink: 0;
-    margin-top: 2px;
-}
-.timeline-item.completed i {
-    color: #28a745;
-}
-.timeline-item p {
-    margin-bottom: 0;
-    padding-top: 2px;
-}
-</style>
 {% endblock %}

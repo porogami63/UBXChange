@@ -115,6 +115,22 @@
         align-items: flex-start;
         color: inherit;
     }
+
+    .txn-avatar-pending {
+        background: #ffc107;
+    }
+
+    .txn-avatar-confirmed {
+        background: #28a745;
+    }
+
+    .txn-avatar-completed {
+        background: #198754;
+    }
+
+    .txn-avatar-cancelled {
+        background: #6c757d;
+    }
 </style>
 {% endblock %}
 
@@ -124,18 +140,69 @@
 <!-- Tabs for Messages and Transactions -->
 {% if conversations or transactions %}
 <div class="mb-4">
-    <ul class="nav nav-tabs nav-fill" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="true">
-                <i class="bi bi-chat-dots me-2"></i>Messages {% if conversations %}<span class="badge bg-secondary ms-2">{{ conversations|length }}</span>{% endif %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
-                <i class="bi bi-receipt me-2"></i>Transactions {% if transactions %}<span class="badge bg-warning ms-2">{{ transactions|length }}</span>{% endif %}
-            </button>
-        </li>
-    </ul>
+    <style>
+        .modern-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #E5E5E5;
+            margin-bottom: 1.5rem;
+        }
+        body.dark-mode .modern-tabs {
+            border-bottom-color: #404040;
+        }
+        .modern-tab-btn {
+            background: none;
+            border: none;
+            padding: 1rem 1.5rem;
+            margin-bottom: -2px;
+            border-bottom: 3px solid transparent;
+            color: #999999;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        .modern-tab-btn:hover:not(.active) {
+            color: #1F1F1F;
+        }
+        body.dark-mode .modern-tab-btn {
+            color: #888888;
+        }
+        body.dark-mode .modern-tab-btn:hover:not(.active) {
+            color: #e5e7eb;
+        }
+        .modern-tab-btn.active {
+            color: #1F1F1F;
+            border-bottom-color: #97C2EC;
+        }
+        body.dark-mode .modern-tab-btn.active {
+            color: #e5e7eb;
+        }
+        .tab-badge {
+            background: #97C2EC;
+            color: white;
+            border-radius: 12px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+    </style>
+    <div class="modern-tabs" role="tablist">
+        <button class="modern-tab-btn active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="true">
+            <i class="bi bi-chat-dots"></i>
+            <span>Messages</span>
+            {% if conversations %}<span class="tab-badge">{{ conversations|length }}</span>{% endif %}
+        </button>
+        <button class="modern-tab-btn" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
+            <i class="bi bi-receipt"></i>
+            <span>Transactions</span>
+            {% if transactions %}<span class="tab-badge">{{ transactions|length }}</span>{% endif %}
+        </button>
+    </div>
 </div>
 
 <div class="tab-content">
@@ -183,43 +250,84 @@
     <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
         {% if transactions %}
         <div class="transactions-list">
+            <p class="text-muted small mb-2 text-uppercase" style="letter-spacing: 0.08em;">Active</p>
             {% for txn in transactions %}
-            <a href="{% url 'marketplace:transaction_detail' txn.pk %}" class="conversation-item text-decoration-none" style="display: flex; gap: 1rem;">
-                <div class="conversation-avatar" style="background: {% if txn.status == 'pending' %}#ffc107{% elif txn.status == 'confirmed' %}#28a745{% else %}#6c757d{% endif %};">
-                    {% if txn.buyer == user %}
-                        🛒
-                    {% else %}
-                        🏪
-                    {% endif %}
-                </div>
-                <div class="conversation-info">
-                    <div class="conversation-name">
-                        <strong>
-                            {% if txn.buyer == user %}
-                                Buying from {{ txn.seller.username }}
-                            {% else %}
-                                Selling to {{ txn.buyer.username }}
-                            {% endif %}
-                        </strong>
-                        {% if txn.listing %}
-                        <span class="conversation-listing-badge">{{ txn.listing.title|truncatechars:25 }}</span>
+                {% if txn.status == 'pending' or txn.status == 'confirmed' %}
+                <a href="{% url 'marketplace:transaction_detail' txn.pk %}" class="conversation-item text-decoration-none" style="display: flex; gap: 1rem;">
+                    <div class="conversation-avatar {% if txn.status == 'pending' %}txn-avatar-pending{% else %}txn-avatar-confirmed{% endif %}">
+                        {% if txn.buyer == user %}
+                            🛒
+                        {% else %}
+                            🏪
                         {% endif %}
                     </div>
-                    <p class="conversation-preview">
-                        {% if txn.status == 'pending' %}
-                            <i class="bi bi-hourglass-split" style="color: #ff9800;"></i> Waiting for seller to confirm
-                        {% elif txn.status == 'confirmed' %}
-                            <i class="bi bi-check-circle" style="color: #28a745;"></i> Ready to exchange via {{ txn.get_exchange_method_display|lower }}
+                    <div class="conversation-info">
+                        <div class="conversation-name">
+                            <strong>
+                                {% if txn.buyer == user %}
+                                    Buying from {{ txn.seller.username }}
+                                {% else %}
+                                    Selling to {{ txn.buyer.username }}
+                                {% endif %}
+                            </strong>
+                            {% if txn.listing %}
+                            <span class="conversation-listing-badge">{{ txn.listing.title|truncatechars:25 }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="conversation-preview">
+                            {% if txn.status == 'pending' %}
+                                <i class="bi bi-hourglass-split" style="color: #ff9800;"></i> Waiting for seller to confirm
+                            {% elif txn.status == 'confirmed' %}
+                                <i class="bi bi-check-circle" style="color: #28a745;"></i> Ready to exchange via {{ txn.get_exchange_method_display|lower }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="conversation-meta">
+                        <small class="conversation-time">₱{{ txn.price|floatformat:0 }}</small>
+                        <small class="conversation-time">{{ txn.created_at|timesince }} ago</small>
+                    </div>
+                </a>
+                {% endif %}
+            {% endfor %}
+
+            <p class="text-muted small mt-4 mb-2 text-uppercase" style="letter-spacing: 0.08em;">History</p>
+            {% for txn in transactions %}
+                {% if txn.status == 'completed' or txn.status == 'cancelled' %}
+                <a href="{% url 'marketplace:transaction_detail' txn.pk %}" class="conversation-item text-decoration-none" style="display: flex; gap: 1rem; opacity: 0.9;">
+                    <div class="conversation-avatar {% if txn.status == 'completed' %}txn-avatar-completed{% else %}txn-avatar-cancelled{% endif %}">
+                        {% if txn.buyer == user %}
+                            🛒
                         {% else %}
-                            {{ txn.status|title }}
+                            🏪
                         {% endif %}
-                    </p>
-                </div>
-                <div class="conversation-meta">
-                    <small class="conversation-time">₱{{ txn.price|floatformat:0 }}</small>
-                    <small class="conversation-time">{{ txn.created_at|timesince }} ago</small>
-                </div>
-            </a>
+                    </div>
+                    <div class="conversation-info">
+                        <div class="conversation-name">
+                            <strong>
+                                {% if txn.buyer == user %}
+                                    Bought from {{ txn.seller.username }}
+                                {% else %}
+                                    Sold to {{ txn.buyer.username }}
+                                {% endif %}
+                            </strong>
+                            {% if txn.listing %}
+                            <span class="conversation-listing-badge">{{ txn.listing.title|truncatechars:25 }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="conversation-preview">
+                            {% if txn.status == 'completed' %}
+                                <i class="bi bi-check2-circle" style="color: #198754;"></i> Completed
+                            {% else %}
+                                <i class="bi bi-x-circle" style="color: #6c757d;"></i> Cancelled
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="conversation-meta">
+                        <small class="conversation-time">₱{{ txn.price|floatformat:0 }}</small>
+                        <small class="conversation-time">{{ txn.created_at|date:"M d, Y" }}</small>
+                    </div>
+                </a>
+                {% endif %}
             {% endfor %}
         </div>
         {% else %}

@@ -1,13 +1,53 @@
 {% extends 'base.html' %}
 {% block title %}Buy {{ listing.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .purchase-hero {
+        background: linear-gradient(135deg, #020617, #0b1120);
+        border-radius: 18px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.75rem;
+        color: #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+    .purchase-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .purchase-sub {
+        font-size: 0.9rem;
+        color: #9ca3af;
+    }
+    .purchase-summary-card {
+        background: var(--color-bg);
+        border-radius: 16px;
+        border: 1px solid var(--color-border);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
+<div class="container py-3">
+    <div class="purchase-hero">
+        <div>
+            <div class="purchase-title">Confirm Purchase</div>
+            <div class="purchase-sub">Choose how to exchange and send a note to the seller.</div>
+        </div>
+        <div class="text-end">
+            <div class="small text-muted mb-1">You’re buying</div>
+            <div class="fw-semibold">{{ listing.title|truncatechars:45 }}</div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-lg-8">
-            <h3 class="font-display fw-bold mb-4" style="color: var(--ubelt-navy);">Confirm Purchase</h3>
-
             <!-- Listing Summary -->
-            <div class="card mb-4 p-4" style="background: #f9f9f9; border: 1px solid #e0e0e0;">
+            <div class="card mb-4 p-4 purchase-summary-card">
                 <div class="row">
                     <div class="col-md-3">
                         {% if listing.image %}
@@ -28,7 +68,7 @@
             </div>
 
             <!-- Order Form -->
-            <div class="card p-4 mb-4">
+            <div class="card p-4 mb-4 purchase-summary-card">
                 <h5 class="fw-bold mb-3">How do you want to exchange?</h5>
                 <form method="post">
                     {% csrf_token %}
@@ -73,7 +113,7 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            <div class="card p-3 sticky-top" style="top: 20px;">
+            <div class="card p-3 sticky-top purchase-summary-card" style="top: 20px;">
                 <h6 class="fw-bold mb-3">Purchase Summary</h6>
                 <div class="d-flex justify-content-between mb-2">
                     <span>Item price</span>
