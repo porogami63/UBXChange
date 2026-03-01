@@ -489,9 +489,24 @@
             <span class="listing-card-fav"><i class="bi bi-heart"></i> {{ listing.fav_count|default:0 }}</span>
         </div>
         <div class="listing-card-body">
-            <div class="listing-card-price">₱{{ listing.price|floatformat:0 }}</div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="listing-card-price">₱{{ listing.price|floatformat:0 }}</div>
+                {% if listing.pending_offers_count > 0 %}
+                <div title="{{ listing.pending_offers_count }} active offers!" style="color: #f59e0b; font-size: 0.75rem; font-weight: 700; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px;">
+                    <i class="bi bi-fire"></i> {{ listing.pending_offers_count }}
+                </div>
+                {% endif %}
+            </div>
             <div class="listing-card-title">{{ listing.title }}</div>
             <div class="listing-card-condition">{{ listing.get_condition_display }}</div>
+            {% if listing.school %}
+            <div style="font-size: 0.7rem; color: {{ listing.school.primary_color }}; font-weight: 600; display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.25rem;">
+                {% if listing.school.logo_url %}
+                <img src="{{ listing.school.logo_url }}" alt="{{ listing.school.short_name }}" style="height: 14px; width: auto; object-fit: contain; background: white; padding: 1px; border-radius: 2px;">
+                {% endif %}
+                <span>{{ listing.school.short_name|default:listing.school.name }}</span>
+            </div>
+            {% endif %}
             <div class="listing-card-seller">
                 <div class="listing-card-avatar">
                     {% if listing.seller.profile.avatar %}
@@ -638,7 +653,14 @@
             <span class="listing-card-fav"><i class="bi bi-heart"></i> {{ listing.fav_count|default:0 }}</span>
         </div>
         <div class="listing-card-body">
-            <div class="listing-card-price">₱{{ listing.price|floatformat:0 }}</div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="listing-card-price">₱{{ listing.price|floatformat:0 }}</div>
+                {% if listing.pending_offers_count > 0 %}
+                <div title="{{ listing.pending_offers_count }} active offers!" style="color: #f59e0b; font-size: 0.75rem; font-weight: 700; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px;">
+                    <i class="bi bi-fire"></i> {{ listing.pending_offers_count }}
+                </div>
+                {% endif %}
+            </div>
             <div class="listing-card-title">{{ listing.title }}</div>
             <div class="listing-card-condition">{{ listing.get_condition_display }}{% if listing.school %} · {% include 'marketplace/_school_badge.html' with school=listing.school %}{% endif %}</div>
             <div class="listing-card-seller">

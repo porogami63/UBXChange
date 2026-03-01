@@ -19,7 +19,11 @@ from .models import (
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ['name', 'short_name']
+    list_display = ['name', 'short_name', 'logo_url']
+    fieldsets = (
+        ('School info', {'fields': ('name', 'short_name')}),
+        ('Branding', {'fields': ('logo_url', 'primary_color', 'secondary_color')}),
+    )
 
 
 @admin.register(Category)
@@ -87,6 +91,6 @@ class ReviewAdmin(admin.ModelAdmin):
 class ModerationLogAdmin(admin.ModelAdmin):
     list_display = ['actor', 'action', 'target_model', 'target_id', 'created_at']
     list_filter = ['action', 'created_at']
-    search_fields = ['actor__username', 'reason']
+    search_fields = ['actor__username']
     date_hierarchy = 'created_at'
-    readonly_fields = ['actor', 'action', 'target_model', 'target_id', 'reason', 'created_at']
+    readonly_fields = ['actor', 'action', 'target_model', 'target_id', 'created_at']

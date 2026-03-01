@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Listing, Profile, ForumPost, ForumReply, Transaction, Category
+from .models import Listing, Profile, ForumPost, ForumReply, Transaction, Category, ProfilePost, School
 
 # Category-specific product attribute definitions
 PRODUCT_ATTRIBUTES = {
@@ -46,6 +46,29 @@ PRODUCT_ATTRIBUTES = {
 }
 
 
+class SchoolSelect(forms.Select):
+    """Custom select widget that adds logo data attributes to school options."""
+    
+    def create_option(self, name, value, label, selected, index, **kwargs):
+        option = super().create_option(name, value, label, selected, index, **kwargs)
+        
+        # Add logo_url as data attribute if school exists
+        # value might be a ModelChoiceIteratorValue object, so we need to handle it carefully
+        if value:
+            try:
+                # Try to convert to int - ModelChoiceIteratorValue can be converted
+                school_id = int(value) if value else None
+                if school_id:
+                    school = School.objects.get(pk=school_id)
+                    if school.logo_url:
+                        option['attrs']['data-logo'] = school.logo_url
+            except (TypeError, ValueError, School.DoesNotExist):
+                # Silently skip if we can't get the school or convert the value
+                pass
+        
+        return option
+
+
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
 
@@ -64,6 +87,7 @@ class ListingForm(forms.ModelForm):
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'category': forms.Select(attrs={'class': 'category-select', 'id': 'id_category'}),
+            'school': SchoolSelect(attrs={'id': 'id_school'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -154,10 +178,11 @@ class ListingForm(forms.ModelForm):
 class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ['full_name', 'school', 'phone', 'contact_info', 'address', 'bio', 'avatar']
+        fields = ['full_name', 'school', 'phone', 'contact_info', 'address', 'bio', 'avatar', 'header_image']
         widgets = {
             'address': forms.TextInput(attrs={'placeholder': 'e.g. Sampaloc, Manila or near LRT Legarda'}),
             'bio': forms.Textarea(attrs={'rows': 3}),
+            'school': SchoolSelect(attrs={'id': 'id_school'}),
         }
 
 
@@ -227,4 +252,22 @@ class TransactionConfirmForm(forms.ModelForm):
         }
         labels = {
             'seller_notes': 'Your confirmation & meeting details (optional)',
+        }
+
+
+class ProfilePostForm(forms.ModelForm):
+    """Form for creating profile posts."""
+    class Meta:
+        model = ProfilePost
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Share your thoughts, updates, or messages with visitors to your profile. Max 1000 characters.',
+                'class': 'form-control',
+                'maxlength': '1000'
+            }),
+        }
+        labels = {
+            'content': 'What\'s on your mind?',
         }

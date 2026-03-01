@@ -5,9 +5,10 @@ from django.db.models import JSONField
 
 
 class School(models.Model):
-    """University Belt schools in Manila with official color motifs."""
+    """University Belt schools in Manila with official color motifs and logos."""
     name = models.CharField(max_length=120)
     short_name = models.CharField(max_length=20, blank=True)
+    logo_url = models.URLField(blank=True, null=True, help_text='URL to school logo image (preferably PNG with transparency)')
     primary_color = models.CharField(max_length=7, default='#1a2b4a', help_text='Hex color (e.g. #FFD700)')
     secondary_color = models.CharField(max_length=7, default='#ffffff', blank=True)
 
@@ -74,6 +75,16 @@ class Listing(models.Model):
     def get_absolute_url(self):
         return reverse('marketplace:listing_detail', kwargs={'pk': self.pk})
 
+    @property
+    def pending_offers_count(self):
+        """Returns the number of pending offers for this listing."""
+        from .models import Message
+        return Message.objects.filter(
+            conversation__listing=self,
+            is_offer=True,
+            offer_status='pending'
+        ).count()
+
 
 class Profile(models.Model):
     """Extended user profile for students."""
@@ -85,11 +96,14 @@ class Profile(models.Model):
     address = models.CharField(max_length=255, blank=True, help_text='General meetup area or barangay')
     bio = models.TextField(blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    header_image = models.ImageField(upload_to='profile_headers/', blank=True, null=True, help_text='Cover image for your profile header')
     google_avatar_url = models.URLField(blank=True)
-    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.0)
-    review_count = models.PositiveIntegerField(default=0)
-    total_sold = models.PositiveIntegerField(default=0)
+    reputation_score = models.DecimalField(max_digits=3, decimal_places=2, default=5.0, help_text='Average reputation score from reviews (1-5 stars)')
+    review_count = models.PositiveIntegerField(default=0, help_text='Total number of reviews received')
+    total_sold = models.PositiveIntegerField(default=0, help_text='Number of items sold')
+    total_bought = models.PositiveIntegerField(default=0, help_text='Number of items purchased')
     is_verified = models.BooleanField(default=False, help_text='Verified email or school verification')
+    pinned_post = models.ForeignKey('ProfilePost', on_delete=models.SET_NULL, null=True, blank=True, related_name='pinned_in_profile', help_text='Featured post on profile')
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -98,16 +112,35 @@ class Profile(models.Model):
     def display_name(self):
         return self.full_name or self.user.get_full_name() or self.user.username
 
+    @property
+    def average_rating(self):
+        """Backward compatibility property for reputation_score."""
+        return self.reputation_score
+
+    @property
+    def total_spent(self):
+        """Calculate total amount spent by this user as a buyer."""
+        from django.db.models import Sum
+        total = self.user.purchases.filter(status='completed').aggregate(Sum('price'))['price__sum']
+        return total or 0
+
+    @property
+    def total_earned(self):
+        """Calculate total amount earned by this user as a seller."""
+        from django.db.models import Sum
+        total = self.user.sales.filter(status='completed').aggregate(Sum('price'))['price__sum']
+        return total or 0
+
     def update_rating(self):
-        """Recalculate average rating from reviews."""
+        """Recalculate reputation score from reviews."""
         reviews = self.user.reviews_received.all()
         if reviews.exists():
-            self.average_rating = sum(r.rating for r in reviews) / reviews.count()
+            self.reputation_score = sum(r.rating for r in reviews) / reviews.count()
             self.review_count = reviews.count()
         else:
-            self.average_rating = 5.0
+            self.reputation_score = 5.0
             self.review_count = 0
-        self.save(update_fields=['average_rating', 'review_count'])
+        self.save(update_fields=['reputation_score', 'review_count'])
 
 
 class Favorite(models.Model):
@@ -309,8 +342,21 @@ class ModerationLog(models.Model):
     action = models.CharField(max_length=40, choices=ACTION_CHOICES)
     target_model = models.CharField(max_length=60, blank=True)
     target_id = models.PositiveIntegerField(null=True, blank=True)
-    reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
+
+
+class ProfilePost(models.Model):
+    """User posts on their profile - visible to public."""
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profile_posts')
+    content = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.author.username}'s post ({self.created_at.strftime('%Y-%m-%d')})"

@@ -207,13 +207,35 @@
 
     <div>
         <div class="listing-info-card">
+            {% if listing.school %}
+            <!-- School Badge Section -->
+            <div class="mb-3 p-3" style="background: linear-gradient(135deg, {{ listing.school.primary_color }}08 0%, {{ listing.school.primary_color }}04 100%); border-radius: 12px; border: 2px solid {{ listing.school.primary_color }}30;">
+                <div class="d-flex align-items-center gap-2" style="color: {{ listing.school.primary_color }};">
+                    {% if listing.school.logo_url %}
+                    <img src="{{ listing.school.logo_url }}" alt="{{ listing.school.name }}" style="height: 40px; width: auto; object-fit: contain; background: white; padding: 2px; border-radius: 4px;">
+                    {% endif %}
+                    <div>
+                        <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">From</div>
+                        <div style="font-size: 1rem; font-weight: 700; color: {{ listing.school.primary_color }};" title="{{ listing.school.name }}">{{ listing.school.short_name|default:listing.school.name }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="listing-price-main">₱{{ listing.price|floatformat:2 }}</div>
-                <div class="d-flex gap-2">
-                    {% if listing.campus %}
-                    <span class="badge bg-ubelt-dark">{{ listing.get_campus_display }}</span>
+                <div class="text-end">
+                    {% if listing.pending_offers_count > 0 %}
+                    <div class="fw-bold mb-1" style="color: #f59e0b; font-size: 0.9rem;">
+                        <i class="bi bi-fire"></i> This item currently has {{ listing.pending_offers_count }} offers!
+                    </div>
                     {% endif %}
-                    <span class="badge bg-secondary">{{ listing.get_condition_display }}</span>
+                    <div class="d-flex gap-2 justify-content-end">
+                        {% if listing.campus %}
+                        <span class="badge bg-ubelt-dark">{{ listing.get_campus_display }}</span>
+                        {% endif %}
+                        <span class="badge bg-secondary">{{ listing.get_condition_display }}</span>
+                    </div>
                 </div>
             </div>
             {% if price_stats %}

@@ -81,9 +81,14 @@
     
     .message-author {
         font-size: 0.85rem;
+        color: var(--color-text);
         opacity: 0.8;
         font-weight: 600;
         margin-bottom: 0.25rem;
+    }
+    
+    .message-wrapper.sent .message-author {
+        color: white;
     }
     
     .empty-conversation {
@@ -138,52 +143,98 @@
         white-space: nowrap;
     }
 
+    /* Improved Offer Bubble */
     .offer-bubble {
-        border: 2px solid #d97706;
-        background: rgba(217, 119, 6, 0.05) !important;
+        border: 2px solid #f59e0b;
+        background: #fffcf0 !important;
         text-align: center;
         padding: 1.5rem !important;
         width: 100%;
-        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
-        margin: 1rem 0;
-    }
-
-    .offer-amount {
-        display: block;
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #d97706;
-        font-family: 'Space Grotesk', sans-serif;
-        margin-bottom: 0.5rem;
-    }
-
-    .offer-actions {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-top: 1rem;
-    }
-
-    .offer-bubble.accepted { border-color: #059669; background: rgba(5, 150, 105, 0.05) !important; }
-    .offer-bubble.accepted .offer-amount { color: #059669; }
-    .offer-bubble.declined { border-color: #dc2626; background: rgba(220, 38, 38, 0.05) !important; }
-    .offer-bubble.declined .offer-amount { color: #dc2626; }
-
-    .offer-amount {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: var(--ubelt-gold);
-        display: block;
-        margin-bottom: 0.5rem;
-    }
-
-    .offer-actions {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-top: 1rem;
+        max-width: 450px;
+        box-shadow: 0 10px 25px rgba(245, 158, 11, 0.15);
+        margin: 1.5rem auto;
+        border-radius: 20px !important;
+        position: relative;
+        overflow: hidden;
     }
     
+    .offer-bubble .offer-title {
+        color: #2D2D2D;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    body.dark-mode .offer-bubble .offer-title {
+        color: #FFFFFF;
+    }
+
+    .hover-underline:hover {
+        text-decoration: underline !important;
+    }
+    
+    body.dark-mode .offer-bubble {
+        background: #2d2618 !important;
+        border-color: #d97706;
+    }
+
+    .offer-bubble::before {
+        content: 'OFFER';
+        position: absolute;
+        top: 10px;
+        right: -30px;
+        background: #f59e0b;
+        color: white;
+        padding: 5px 40px;
+        transform: rotate(45deg);
+        font-size: 0.65rem;
+        font-weight: 900;
+        letter-spacing: 1px;
+    }
+
+    .offer-amount {
+        display: block;
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: #b45309;
+        font-family: 'Space Grotesk', sans-serif;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    body.dark-mode .offer-amount {
+        color: #fbbf24;
+    }
+
+    .offer-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-top: 1.25rem;
+    }
+
+    .offer-bubble.accepted { 
+        border-color: #10b981; 
+        background: #f0fdf4 !important; 
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+    }
+    .offer-bubble.accepted::before { background: #10b981; content: 'ACCEPTED'; }
+    .offer-bubble.accepted .offer-amount { color: #065f46; }
+    
+    body.dark-mode .offer-bubble.accepted { background: #064e3b !important; }
+    body.dark-mode .offer-bubble.accepted .offer-amount { color: #34d399; }
+
+    .offer-bubble.declined { 
+        border-color: #ef4444; 
+        background: #fef2f2 !important;
+        box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15);
+        opacity: 0.8;
+    }
+    .offer-bubble.declined::before { background: #ef4444; content: 'DECLINED'; }
+    .offer-bubble.declined .offer-amount { color: #991b1b; }
+    
+    body.dark-mode .offer-bubble.declined { background: #450a0a !important; }
+    body.dark-mode .offer-bubble.declined .offer-amount { color: #f87171; }
+
     .conversation-header {
         padding: 1rem 1.5rem;
         background: var(--color-bg);
@@ -209,6 +260,57 @@
         margin-left: 0.75rem;
         font-size: 0.85rem;
     }
+
+    /* Chat Listing Preview */
+    .chat-listing-preview {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+        gap: 1rem;
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.2s;
+    }
+
+    body.dark-mode .chat-listing-preview {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    .chat-listing-preview:hover {
+        background: var(--color-bg-secondary);
+        color: inherit;
+    }
+
+    .preview-img {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: #f0f0f0;
+    }
+
+    .preview-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .preview-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .preview-price {
+        font-weight: 700;
+        color: var(--ubelt-teal);
+        font-size: 0.85rem;
+    }
 </style>
 {% endblock %}
 
@@ -218,12 +320,28 @@
         <h5>
             <i class="bi bi-chat-dots me-2"></i>
             {{ other_display_name }}
-            {% if conversation.listing %}
-            <a href="{% url 'marketplace:listing_detail' conversation.listing.pk %}" class="badge bg-warning text-dark text-decoration-none conversation-badge">{{ conversation.listing.title|truncatechars:40 }}</a>
-            {% endif %}
         </h5>
         <a href="{% url 'marketplace:inbox' %}" class="btn btn-sm btn-outline-secondary">← Back</a>
     </div>
+
+    {% if conversation.listing %}
+    <a href="{% url 'marketplace:listing_detail' conversation.listing.pk %}" class="chat-listing-preview">
+        {% if conversation.listing.image %}
+        <img src="{{ conversation.listing.image.url }}" class="preview-img" alt="">
+        {% else %}
+        <div class="preview-img d-flex align-items-center justify-content-center">
+            <i class="bi bi-image text-muted"></i>
+        </div>
+        {% endif %}
+        <div class="preview-info">
+            <div class="preview-title">{{ conversation.listing.title }}</div>
+            <div class="preview-price">₱{{ conversation.listing.price|floatformat:2 }}</div>
+        </div>
+        <div class="text-muted small">
+            View Item <i class="bi bi-chevron-right"></i>
+        </div>
+    </a>
+    {% endif %}
     
     <div class="messages-container" id="messages-container">
         <!-- Offer Priority Notice -->
@@ -238,7 +356,15 @@
                 <span class="message-author">{{ msg.sender.username }}</span>
                 {% if msg.is_offer %}
                     <span class="offer-amount">₱{{ msg.offer_amount|floatformat:2 }}</span>
-                    <div class="fw-bold mb-2">Offer for {{ conversation.listing.title }}</div>
+                    <div class="offer-title mb-2">
+                        {% if conversation.listing %}
+                        <a href="{% url 'marketplace:listing_detail' conversation.listing.pk %}" class="text-decoration-none hover-underline" style="color: inherit;">
+                            Offer for {{ conversation.listing.title }} <i class="bi bi-box-arrow-up-right small"></i>
+                        </a>
+                        {% else %}
+                        Offer for item
+                        {% endif %}
+                    </div>
                     {% if msg.offer_status == 'pending' %}
                         {% if conversation.listing.seller == request.user and msg.sender != request.user %}
                         <div class="offer-actions">

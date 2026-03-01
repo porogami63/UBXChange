@@ -33,6 +33,9 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('user/<str:username>/', views.public_profile_view, name='public_profile'),
     path('user/<str:username>/review/', views.leave_review, name='leave_review'),
+    path('profile/post/create/', views.create_profile_post, name='create_profile_post'),
+    path('profile/post/<int:pk>/delete/', views.delete_profile_post, name='delete_profile_post'),
+    path('profile/post/<int:pk>/pin/', views.pin_profile_post, name='pin_profile_post'),
     # Moderation (superuser only)
     path('mod/', views.mod_dashboard, name='mod_dashboard'),
     path('mod/sales/', views.mod_sales_analytics, name='mod_sales'),

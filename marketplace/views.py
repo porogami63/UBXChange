@@ -24,6 +24,7 @@ from .models import (
     Transaction,
     TransactionMessage,
     ModerationLog,
+    ProfilePost,
 )
 from .forms import (
     CustomUserCreationForm,
@@ -34,6 +35,7 @@ from .forms import (
     ForumReplyForm,
     PurchaseForm,
     TransactionConfirmForm,
+    ProfilePostForm,
 )
 from .utils import get_similar_listings_price_stats
 
@@ -375,14 +377,13 @@ def listing_mark_sold(request, pk):
 
 @login_required
 def my_listings(request):
-    """User's own listings."""
-    listings = request.user.listings.select_related('category', 'school').order_by('-created_at')
-    return render(request, 'marketplace/my_listings.html', {'listings': listings})
+    """Redirect to unified My Profile page."""
+    return redirect('marketplace:profile')
 
 
 @login_required
 def profile_view(request):
-    """View and edit profile."""
+    """Unified My Profile page with profile edit, listings, and transactions."""
     profile, _ = Profile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
@@ -394,7 +395,26 @@ def profile_view(request):
     else:
         form = ProfileForm(instance=profile)
 
-    return render(request, 'marketplace/profile.html', {'form': form, 'profile': profile})
+    # Fetch user's listings
+    listings = request.user.listings.select_related('category', 'school').order_by('-created_at')
+    
+    # Fetch user's transactions (both as buyer and seller)
+    buyer_transactions = request.user.purchases.select_related('seller', 'listing').order_by('-created_at')
+    seller_transactions = request.user.sales.select_related('buyer', 'listing').order_by('-created_at')
+    
+    # Fetch user's posts and forum activity
+    profile_posts = ProfilePost.objects.filter(author=request.user)
+    forum_posts = ForumPost.objects.filter(author=request.user)
+
+    return render(request, 'marketplace/my_profile.html', {
+        'form': form,
+        'profile': profile,
+        'listings': listings,
+        'buyer_transactions': buyer_transactions,
+        'seller_transactions': seller_transactions,
+        'profile_posts': profile_posts,
+        'forum_posts': forum_posts,
+    })
 
 
 def public_profile_view(request, username):
@@ -403,6 +423,9 @@ def public_profile_view(request, username):
     profile, _ = Profile.objects.get_or_create(user=user)
     listings = user.listings.filter(is_sold=False).select_related('category', 'school')
     reviews = Review.objects.filter(seller=user).select_related('reviewer').order_by('-created_at')[:10]
+    profile_posts = ProfilePost.objects.filter(author=user)
+    forum_posts = ForumPost.objects.filter(author=user)
+    pinned_post = profile.pinned_post
     
     # Check if current user has bought from this seller
     has_purchased = False
@@ -421,6 +444,9 @@ def public_profile_view(request, username):
         'reviews': reviews,
         'has_purchased': has_purchased,
         'has_reviewed': has_reviewed,
+        'profile_posts': profile_posts,
+        'forum_posts': forum_posts,
+        'pinned_post': pinned_post,
     })
 
 
@@ -471,6 +497,68 @@ def leave_review(request, username):
         'rating_choices': Review._meta.get_field('rating').choices,
     }
     return render(request, 'marketplace/leave_review.html', context)
+
+
+@login_required
+def create_profile_post(request):
+    """Create a new post on user's profile."""
+    if request.method == 'POST':
+        form = ProfilePostForm(request.POST)
+        if form.is_valid():
+            post = form.save(commit=False)
+            post.author = request.user
+            post.save()
+            messages.success(request, 'Post added to your profile!')
+            return redirect('marketplace:public_profile', username=request.user.username)
+    else:
+        form = ProfilePostForm()
+    
+    return render(request, 'marketplace/profile_post_form.html', {'form': form})
+
+
+@login_required
+def delete_profile_post(request, pk):
+    """Delete a profile post."""
+    post = get_object_or_404(ProfilePost, pk=pk)
+    
+    if post.author != request.user:
+        messages.error(request, 'You can only delete your own posts.')
+        return redirect('marketplace:public_profile', username=request.user.username)
+    
+    if request.method == 'POST':
+        # If this post was pinned, unpin it
+        if post.author.profile.pinned_post == post:
+            post.author.profile.pinned_post = None
+            post.author.profile.save()
+        
+        post.delete()
+        messages.success(request, 'Post deleted.')
+        return redirect('marketplace:public_profile', username=request.user.username)
+    
+    return render(request, 'marketplace/profile_post_confirm_delete.html', {'post': post})
+
+
+@login_required
+def pin_profile_post(request, pk):
+    """Pin/unpin a profile post."""
+    post = get_object_or_404(ProfilePost, pk=pk)
+    profile = request.user.profile
+    
+    if post.author != request.user:
+        messages.error(request, 'You can only pin your own posts.')
+        return redirect('marketplace:public_profile', username=request.user.username)
+    
+    if profile.pinned_post == post:
+        # Unpin
+        profile.pinned_post = None
+        messages.success(request, 'Post unpinned.')
+    else:
+        # Pin
+        profile.pinned_post = post
+        messages.success(request, 'Post pinned to your profile!')
+    
+    profile.save()
+    return redirect('marketplace:public_profile', username=request.user.username)
 
 
 @login_required
@@ -600,6 +688,11 @@ def transaction_detail(request, transaction_id):
                 transaction.status = 'confirmed'
                 transaction.confirmed_at = timezone.now()
                 transaction.save()
+
+                # Take listing down if it's confirmed (meetup phase)
+                if transaction.listing:
+                    transaction.listing.is_sold = True
+                    transaction.listing.save()
                 
                 # Notify buyer
                 Notification.objects.create(

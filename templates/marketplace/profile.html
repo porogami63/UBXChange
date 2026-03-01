@@ -194,24 +194,29 @@
         transform: translateY(-2px);
     }
 
-    .rating-display {
-        background: #f0f7ff;
-        border-left: 4px solid #4285F4;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
+    .reputation-display {
+        background: linear-gradient(135deg, #fffcf0 0%, #fff8f0 100%);
+        border-left: 4px solid var(--ubelt-gold);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
     }
-    .rating-display .label {
-        font-size: 0.85rem;
-        color: #666;
+    .reputation-display .label {
+        font-size: 0.75rem;
+        color: #b45309;
         text-transform: uppercase;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
     }
-    .rating-display .value {
-        font-size: 1.3rem;
+    .reputation-display .value {
+        font-size: 1.4rem;
         font-weight: 800;
-        color: var(--ubelt-gold);
+        color: #b45309;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
 
     .alert {
@@ -275,14 +280,14 @@
         </div>
     </div>
 
-    {% if user.profile.average_rating > 0 %}
-    <div class="rating-display">
-        <div class="label">Your Seller Rating</div>
+    {% if user.profile.reputation_score > 0 %}
+    <div class="reputation-display">
+        <div class="label">✨ Your Reputation Score</div>
         <div class="value">
-            {% for star in "12345" %}
-                {% if star|add:"0" <= user.profile.average_rating %}⭐{% else %}☆{% endif %}
+            {% for i in "12345" %}
+                {% if i|add:"0" <= user.profile.reputation_score %}⭐{% else %}☆{% endif %}
             {% endfor %}
-            {{ user.profile.average_rating|floatformat:1 }} ({{ user.profile.review_count }} review{{ user.profile.review_count|pluralize }})
+            <span>{{ user.profile.reputation_score|floatformat:1 }}/5.0 ({{ user.profile.review_count }} review{{ user.profile.review_count|pluralize }})</span>
         </div>
     </div>
     {% endif %}
